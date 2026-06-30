@@ -15,16 +15,16 @@ Use the bundled CLI directly. Do not create one-off runners unless the user expl
 The default config file lives at the skill root:
 
 ```text
-C:\Users\Administrator\.codex\skills\arc-imagegen\config.json
+<skill-root>/config.json
 ```
 
 Use `--config` only when temporarily overriding the default config:
 
 ```powershell
-python C:\Users\Administrator\.codex\skills\arc-imagegen\scripts\image_gen.py generate `
-  --config E:\7-AgentWorkSpace\arc-imagegen\ref\doc.md `
+python "<skill-root>/scripts/image_gen.py" generate `
+  --config tmp/arc-imagegen/config.toml `
   --prompt "Test" `
-  --out C:\Users\Administrator\.codex\skills\arc-imagegen\output\test.png `
+  --out "<skill-root>/output/test.png" `
   --dry-run
 ```
 
@@ -32,7 +32,7 @@ Config lookup order:
 
 1. `--config <path>`
 2. `ARC_IMAGEGEN_CONFIG`
-3. `C:\Users\Administrator\.codex\skills\arc-imagegen\config.json`, if present
+3. `<skill-root>/config.json`, if present
 4. Environment overrides: `ARC_IMAGEGEN_BASE_URL`, `ARC_IMAGEGEN_API_KEY`, `ARC_IMAGEGEN_DEFAULT_MODEL`, `ARC_IMAGEGEN_TIMEOUT_SECONDS`
 
 Config may be TOML or JSON:
@@ -52,15 +52,16 @@ Do not pass API keys on the command line. Dry-runs print `base_url`, endpoint, p
 
 ## Dependencies
 
-Required for live API calls:
+Install bundled dependencies:
+
+```powershell
+python -m pip install -r "<skill-root>/requirements.txt"
+```
+
+Equivalent individual installs:
 
 ```powershell
 python -m pip install --user httpx
-```
-
-Required for chroma-key removal and optional downscaling:
-
-```powershell
 python -m pip install --user pillow
 ```
 
@@ -71,7 +72,7 @@ python -m pip install --user pillow
 Dry-run:
 
 ```powershell
-python C:\Users\Administrator\.codex\skills\arc-imagegen\scripts\image_gen.py generate `
+python "<skill-root>/scripts/image_gen.py" generate `
   --prompt "A cozy alpine cabin at dawn" `
   --size 1024x1024 `
   --dry-run
@@ -80,11 +81,11 @@ python C:\Users\Administrator\.codex\skills\arc-imagegen\scripts\image_gen.py ge
 Live call:
 
 ```powershell
-python C:\Users\Administrator\.codex\skills\arc-imagegen\scripts\image_gen.py generate `
+python "<skill-root>/scripts/image_gen.py" generate `
   --prompt "A cozy alpine cabin at dawn" `
   --quality medium `
   --size 1024x1024 `
-  --out C:\Users\Administrator\.codex\skills\arc-imagegen\output\alpine-cabin.png `
+  --out "<skill-root>/output/alpine-cabin.png" `
   --quiet
 ```
 
@@ -103,10 +104,10 @@ Useful options:
 Use `edit` when the user asks to modify existing local images.
 
 ```powershell
-python C:\Users\Administrator\.codex\skills\arc-imagegen\scripts\image_gen.py edit `
+python "<skill-root>/scripts/image_gen.py" edit `
   --image input.png `
   --prompt "Replace only the background with a warm sunset; keep the product unchanged" `
-  --out C:\Users\Administrator\.codex\skills\arc-imagegen\output\sunset-edit.png
+  --out "<skill-root>/output/sunset-edit.png"
 ```
 
 Pass multiple `--image` flags in a meaningful order, then describe each image by index and role in the prompt. Use `--mask <png>` for a single edit mask when needed.
@@ -123,7 +124,7 @@ Create a JSONL file with one prompt or object per line:
 Run:
 
 ```powershell
-python C:\Users\Administrator\.codex\skills\arc-imagegen\scripts\image_gen.py generate-batch `
+python "<skill-root>/scripts/image_gen.py" generate-batch `
   --input tmp/imagegen/prompts.jsonl `
   --concurrency 5 `
   --quiet
@@ -131,7 +132,7 @@ python C:\Users\Administrator\.codex\skills\arc-imagegen\scripts\image_gen.py ge
 
 Per-job overrides include `model`, `size`, `quality`, `background`, `output_format`, `output_compression`, `moderation`, `n`, `out`, and all prompt augmentation fields.
 
-When `--out-dir` is omitted, batch outputs default to `C:\Users\Administrator\.codex\skills\arc-imagegen\output\batch\`.
+When `--out-dir` is omitted, batch outputs default to `<skill-root>/output/batch/`.
 
 ## Result display
 

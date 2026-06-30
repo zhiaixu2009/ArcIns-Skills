@@ -24,7 +24,7 @@ Use Bearer auth from config:
 }
 ```
 
-Do not pass keys in shell arguments. Fill `C:\Users\Administrator\.codex\skills\arc-imagegen\config.json`, or use `--config`, `ARC_IMAGEGEN_CONFIG`, or `ARC_IMAGEGEN_API_KEY`.
+Do not pass keys in shell arguments. Fill `<skill-root>/config.json`, or use `--config`, `ARC_IMAGEGEN_CONFIG`, or `ARC_IMAGEGEN_API_KEY`.
 
 ## Supported models
 
@@ -105,7 +105,7 @@ The CLI decodes `b64_json` and writes the requested output files. Streaming is s
 
 ## Failure guidance
 
-- Missing config/key: ask the user to fill `C:\Users\Administrator\.codex\skills\arc-imagegen\config.json`, set `ARC_IMAGEGEN_API_KEY`, or provide `--config`.
+- Missing config/key: ask the user to fill `<skill-root>/config.json`, set `ARC_IMAGEGEN_API_KEY`, or provide `--config`.
 - Unsupported option for `gpt-image-2`: remove the option only if it is not required; for true transparency, ask before switching to `gpt-image-1.5`.
 - Existing output path: reruns fail unless `--force` is passed.
 - `httpx` missing: install with `python -m pip install --user httpx`.

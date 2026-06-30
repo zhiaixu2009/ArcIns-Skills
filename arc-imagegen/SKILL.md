@@ -24,10 +24,12 @@ Do not use Codex's built-in `image_gen` tool from this skill.
 
 ## Configuration
 
+Path convention: `<skill-root>` means the absolute path to the installed `arc-imagegen` skill directory.
+
 Default config:
 
 ```text
-C:\Users\Administrator\.codex\skills\arc-imagegen\config.json
+<skill-root>/config.json
 ```
 
 Supported keys:
@@ -45,7 +47,7 @@ Lookup order:
 
 1. `--config <path>`
 2. `ARC_IMAGEGEN_CONFIG`
-3. `C:\Users\Administrator\.codex\skills\arc-imagegen\config.json`
+3. `<skill-root>/config.json`
 4. `ARC_IMAGEGEN_*` environment variables override file values
 
 Environment overrides:
@@ -85,36 +87,45 @@ In direct generation:
 Generate images:
 
 ```powershell
-python C:\Users\Administrator\.codex\skills\arc-imagegen\scripts\image_gen.py generate `
+python "<skill-root>/scripts/image_gen.py" generate `
   --prompt "<direct image prompt from the user's intent>" `
   --model gpt-image-2 `
   --quality medium `
   --size 1024x1024 `
   --n <1-15> `
-  --out C:\Users\Administrator\.codex\skills\arc-imagegen\output\output.png `
+  --out "<skill-root>/output/output.png" `
   --quiet
 ```
 
 Edit images:
 
 ```powershell
-python C:\Users\Administrator\.codex\skills\arc-imagegen\scripts\image_gen.py edit `
+python "<skill-root>/scripts/image_gen.py" edit `
   --image input.png `
   --prompt "<direct edit prompt from the user's intent>" `
   --quality medium `
-  --out C:\Users\Administrator\.codex\skills\arc-imagegen\output\edit.png `
+  --out "<skill-root>/output/edit.png" `
   --quiet
 ```
 
 Batch generation is available only when the user clearly asks for multiple distinct prompts:
 
 ```powershell
-python C:\Users\Administrator\.codex\skills\arc-imagegen\scripts\image_gen.py generate-batch `
+python "<skill-root>/scripts/image_gen.py" generate-batch `
   --input prompts.jsonl `
-  --out-dir C:\Users\Administrator\.codex\skills\arc-imagegen\output\batch `
+  --out-dir "<skill-root>/output/batch" `
   --concurrency 5 `
   --quiet
 ```
+
+## First-Run Checks
+
+If generation fails before reaching the API:
+
+- Check that `httpx` is installed, preferably from `<skill-root>/requirements.txt`.
+- Check that `<skill-root>/config.json` exists or `ARC_IMAGEGEN_API_KEY` is set.
+- Run `python "<skill-root>/scripts/image_gen.py" generate --prompt "test" --dry-run` to verify config resolution without a live request.
+- Never ask the user to paste API keys into chat; ask them to edit config or set environment variables.
 
 ## Prompt Rules
 

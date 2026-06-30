@@ -14,7 +14,7 @@ When adapting a user's prompt:
 
 The labeled lines are prompt scaffolding, not a closed schema. `Asset type` and `Input images` are prompt-only scaffolding; the CLI does not expose them as dedicated flags.
 
-Execution details such as `quality`, `input_fidelity`, masks, output formats, and local output paths are handled by `scripts/image_gen.py`. For simple transparent images, prompt for a flat chroma-key background and remove it locally with `python C:\Users\Administrator\.codex\skills\arc-imagegen\scripts\remove_chroma_key.py`; use `gpt-image-1.5 --background transparent --output-format png` only after the user confirms native transparency or explicitly requests it.
+Execution details such as `quality`, `input_fidelity`, masks, output formats, and local output paths are handled by `scripts/image_gen.py`. For simple transparent images, prompt for a flat chroma-key background and remove it locally with `python "<skill-root>/scripts/remove_chroma_key.py"`; use `gpt-image-1.5 --background transparent --output-format png` only after the user confirms native transparency or explicitly requests it.
 
 CLI model notes:
 - `gpt-image-2` is the default for new workflows.
@@ -396,7 +396,7 @@ Scene/backdrop: perfectly flat solid #00ff00 chroma-key background for local bac
 Constraints: background must be one uniform color with no shadows, gradients, texture, reflections, floor plane, or lighting variation; crisp silhouette; generous padding; no halos or fringing; preserve label text exactly; no restyling; do not use #00ff00 anywhere in the subject
 ```
 
-Post-process note: after API generation, run `python C:\Users\Administrator\.codex\skills\arc-imagegen\scripts\remove_chroma_key.py --input <source> --out <final.png> --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill`. Ask before using `gpt-image-1.5 --background transparent --output-format png` for true/native transparency, failed chroma-key validation, or complex subjects such as hair, fur, glass, smoke, liquids, translucent materials, reflections, or soft shadows, unless the user already explicitly requested `gpt-image-1.5` or native transparency.
+Post-process note: after API generation, run `python "<skill-root>/scripts/remove_chroma_key.py" --input <source> --out <final.png> --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill`. Ask before using `gpt-image-1.5 --background transparent --output-format png` for true/native transparency, failed chroma-key validation, or complex subjects such as hair, fur, glass, smoke, liquids, translucent materials, reflections, or soft shadows, unless the user already explicitly requested `gpt-image-1.5` or native transparency.
 
 ### style-transfer
 ```
