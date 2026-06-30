@@ -1,0 +1,157 @@
+# CLI reference (`scripts/image_gen.py`)
+
+This CLI is the primary execution path for `$arc-imagegen`. It calls an OpenAI-compatible Images API through a configurable `base_url` and `api_key`; it does not use Codex's built-in `image_gen` tool.
+
+## Commands
+
+- `generate`: create a new image from a prompt.
+- `edit`: edit one or more existing local images.
+- `generate-batch`: generate many prompts from a JSONL file.
+
+Use the bundled CLI directly. Do not create one-off runners unless the user explicitly asks for one.
+
+## Configuration
+
+The default config file lives at the skill root:
+
+```text
+C:\Users\Administrator\.codex\skills\arc-imagegen\config.json
+```
+
+Use `--config` only when temporarily overriding the default config:
+
+```powershell
+python C:\Users\Administrator\.codex\skills\arc-imagegen\scripts\image_gen.py generate `
+  --config E:\7-AgentWorkSpace\arc-imagegen\ref\doc.md `
+  --prompt "Test" `
+  --out C:\Users\Administrator\.codex\skills\arc-imagegen\output\test.png `
+  --dry-run
+```
+
+Config lookup order:
+
+1. `--config <path>`
+2. `ARC_IMAGEGEN_CONFIG`
+3. `C:\Users\Administrator\.codex\skills\arc-imagegen\config.json`, if present
+4. Environment overrides: `ARC_IMAGEGEN_BASE_URL`, `ARC_IMAGEGEN_API_KEY`, `ARC_IMAGEGEN_DEFAULT_MODEL`, `ARC_IMAGEGEN_TIMEOUT_SECONDS`
+
+Config may be TOML or JSON:
+
+```json
+{
+  "base_url": "https://sub-api.example.com",
+  "api_key": "sk-...",
+  "default_model": "gpt-image-2",
+  "timeout_seconds": 300
+}
+```
+
+The script normalizes bare base URLs to `/v1`, so `https://sub-api.example.com` becomes `https://sub-api.example.com/v1`.
+
+Do not pass API keys on the command line. Dry-runs print `base_url`, endpoint, payload, and output paths, but never print the API key.
+
+## Dependencies
+
+Required for live API calls:
+
+```powershell
+python -m pip install --user httpx
+```
+
+Required for chroma-key removal and optional downscaling:
+
+```powershell
+python -m pip install --user pillow
+```
+
+`--dry-run` does not require `httpx`.
+
+## Generate
+
+Dry-run:
+
+```powershell
+python C:\Users\Administrator\.codex\skills\arc-imagegen\scripts\image_gen.py generate `
+  --prompt "A cozy alpine cabin at dawn" `
+  --size 1024x1024 `
+  --dry-run
+```
+
+Live call:
+
+```powershell
+python C:\Users\Administrator\.codex\skills\arc-imagegen\scripts\image_gen.py generate `
+  --prompt "A cozy alpine cabin at dawn" `
+  --quality medium `
+  --size 1024x1024 `
+  --out C:\Users\Administrator\.codex\skills\arc-imagegen\output\alpine-cabin.png `
+  --quiet
+```
+
+Useful options:
+
+- `--model`: defaults to config `default_model`, then `gpt-image-2`.
+- `--quality`: `low`, `medium`, `high`, or `auto`; default is `medium`.
+- `--size`: `auto` or a valid model size.
+- `--n`: 1-15 variants for one prompt.
+- `--output-format`: `png`, `jpeg`, or `webp`.
+- `--downscale-max-dim`: also write a smaller copy for web usage.
+- `--quiet`: suppress routine progress logs while still showing errors.
+
+## Edit
+
+Use `edit` when the user asks to modify existing local images.
+
+```powershell
+python C:\Users\Administrator\.codex\skills\arc-imagegen\scripts\image_gen.py edit `
+  --image input.png `
+  --prompt "Replace only the background with a warm sunset; keep the product unchanged" `
+  --out C:\Users\Administrator\.codex\skills\arc-imagegen\output\sunset-edit.png
+```
+
+Pass multiple `--image` flags in a meaningful order, then describe each image by index and role in the prompt. Use `--mask <png>` for a single edit mask when needed.
+
+## Batch
+
+Create a JSONL file with one prompt or object per line:
+
+```jsonl
+{"prompt":"Cavernous hangar interior with a compact shuttle parked near the center","use_case":"stylized-concept","composition":"wide-angle, low-angle","lighting":"volumetric light rays","constraints":"no logos; no watermark","size":"1536x1024"}
+{"prompt":"Gray wolf in profile in a snowy forest","use_case":"photorealistic-natural","composition":"eye-level","constraints":"no logos; no watermark","size":"1024x1024"}
+```
+
+Run:
+
+```powershell
+python C:\Users\Administrator\.codex\skills\arc-imagegen\scripts\image_gen.py generate-batch `
+  --input tmp/imagegen/prompts.jsonl `
+  --concurrency 5 `
+  --quiet
+```
+
+Per-job overrides include `model`, `size`, `quality`, `background`, `output_format`, `output_compression`, `moderation`, `n`, `out`, and all prompt augmentation fields.
+
+When `--out-dir` is omitted, batch outputs default to `C:\Users\Administrator\.codex\skills\arc-imagegen\output\batch\`.
+
+## Result display
+
+After generation, display every generated file in the Codex conversation with the local image-viewing tool, then list the generated image files in the final text response. Do not create preview helper files, contact sheets, Markdown image embeds, raw HTML previews, or combined preview PNGs.
+
+For routine generation, do not run extra visual QA or post-processing after files are written. Write all user-facing progress and final text in Simplified Chinese. Finish with one concise Chinese sentence that says the count, model, quality, and output directory, followed by compact file links for the generated images.
+
+## gpt-image-2
+
+`gpt-image-2` is the default model.
+
+Use `--quality medium` by default. Use `low` for explicit cheap/fast smoke tests, and `high` for final assets, dense text, diagrams, identity-sensitive edits, or high-resolution output.
+
+Valid `gpt-image-2` sizes are `auto` or any `WIDTHxHEIGHT` satisfying:
+
+- max edge `<= 3840`
+- both edges multiples of `16`
+- long-to-short ratio `<= 3:1`
+- total pixels from `655,360` to `8,294,400`
+
+Common sizes: `1024x1024`, `1536x1024`, `1024x1536`, `2048x2048`, `2048x1152`, `3840x2160`, `2160x3840`.
+
+`gpt-image-2` does not support `--background transparent`; use chroma-key removal first or ask before switching to `gpt-image-1.5` for native transparency.

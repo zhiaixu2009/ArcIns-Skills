@@ -1,0 +1,12 @@
+.env
+.env.*
+node_modules/
+dist/
+build/
+target/
+__pycache__/
+.venv/
+.DS_Store
+.idea/
+.vscode/
+arc-imagegen/output
