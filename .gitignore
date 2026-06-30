@@ -9,4 +9,5 @@ __pycache__/
 .DS_Store
 .idea/
 .vscode/
-arc-imagegen/output
+arc-imagegen/output/*
+config.json

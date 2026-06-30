@@ -1,0 +1,6 @@
+{
+  "base_url": "https://sub-api.arcclawai.com",
+  "api_key": "YOUR API KEY",
+  "default_model": "gpt-image-2",
+  "timeout_seconds": 300
+}
