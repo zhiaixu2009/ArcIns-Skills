@@ -1,6 +1,9 @@
 import importlib.util
+import asyncio
+import json
 import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -149,6 +152,194 @@ class ImageGenConfigTests(unittest.TestCase):
         self.assertNotIn("OpenAI/Python", request.headers["user-agent"])
         self.assertFalse(any(name.lower().startswith("x-stainless") for name in request.headers))
         self.assertEqual(self.image_gen._extract_b64_images(response), ["aW1hZ2U="])
+
+    def test_generation_stream_dry_run_includes_stream_payload(self):
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT_PATH),
+                "generate",
+                "--prompt",
+                "a blue circle",
+                "--stream",
+                "--dry-run",
+                "--quiet",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        request = json.loads(result.stdout)
+        self.assertTrue(request["stream"])
+        self.assertEqual(request["response_format"], "b64_json")
+
+    def test_generation_stream_response_extracts_completed_image(self):
+        config = self.image_gen.APIConfig(
+            base_url="https://sub-api.example.com/v1",
+            api_key="sk-test",
+            default_model="gpt-image-2",
+            timeout_seconds=10,
+        )
+        payload = {
+            "model": "gpt-image-2",
+            "prompt": "a blue circle",
+            "stream": True,
+            "response_format": "b64_json",
+        }
+        captured = {}
+        stream_body = (
+            ":\n\n"
+            "event: image_generation.partial_image\n"
+            'data: {"type":"image_generation.partial_image","b64_json":"cGFydGlhbA=="}\n\n'
+            "event: image_generation.completed\n"
+            'data: {"type":"image_generation.completed","b64_json":"ZmluYWw="}\n\n'
+            "data: [DONE]\n\n"
+        )
+
+        def handler(request):
+            captured["request"] = request
+            return httpx.Response(
+                200,
+                headers={"content-type": "text/event-stream"},
+                text=stream_body,
+            )
+
+        response = self.image_gen._post_json_api(
+            config,
+            "/images/generations",
+            payload,
+            transport=httpx.MockTransport(handler),
+        )
+
+        request = captured["request"]
+        sent_payload = json.loads(request.content)
+        self.assertTrue(sent_payload["stream"])
+        self.assertEqual(sent_payload["response_format"], "b64_json")
+        self.assertEqual(self.image_gen._extract_b64_images(response), ["ZmluYWw="])
+
+    def test_batch_default_max_attempts_is_one_retry(self):
+        self.assertEqual(self.image_gen.DEFAULT_BATCH_MAX_ATTEMPTS, 2)
+
+    def test_retry_happens_immediately_without_backoff_sleep(self):
+        config = self.image_gen.APIConfig(
+            base_url="https://sub-api.example.com/v1",
+            api_key="sk-test",
+            default_model="gpt-image-2",
+            timeout_seconds=10,
+        )
+        payload = {"prompt": "a blue circle"}
+        request_count = 0
+        sleep_calls = []
+
+        async def handler(request):
+            nonlocal request_count
+            request_count += 1
+            if request_count == 1:
+                return httpx.Response(500, json={"error": {"message": "temporary"}})
+            return httpx.Response(200, json={"data": [{"b64_json": "ZmluYWw="}]})
+
+        async def fake_sleep(seconds):
+            sleep_calls.append(seconds)
+
+        async def run():
+            transport = httpx.MockTransport(handler)
+            async with httpx.AsyncClient(transport=transport) as client:
+                with patch.object(self.image_gen.asyncio, "sleep", new=fake_sleep):
+                    return await self.image_gen._generate_one_with_retries(
+                        client,
+                        config,
+                        payload,
+                        attempts=2,
+                        job_label="[job 1/1]",
+                        quiet=True,
+                    )
+
+        images = asyncio.run(run())
+
+        self.assertEqual(images, ["ZmluYWw="])
+        self.assertEqual(request_count, 2)
+        self.assertEqual(sleep_calls, [])
+
+    def test_retry_gives_up_after_second_timeout(self):
+        config = self.image_gen.APIConfig(
+            base_url="https://sub-api.example.com/v1",
+            api_key="sk-test",
+            default_model="gpt-image-2",
+            timeout_seconds=10,
+        )
+        payload = {"prompt": "a blue circle"}
+        request_count = 0
+        sleep_calls = []
+
+        async def handler(request):
+            nonlocal request_count
+            request_count += 1
+            raise httpx.ReadTimeout("timed out", request=request)
+
+        async def fake_sleep(seconds):
+            sleep_calls.append(seconds)
+
+        async def run():
+            transport = httpx.MockTransport(handler)
+            async with httpx.AsyncClient(transport=transport) as client:
+                with patch.object(self.image_gen.asyncio, "sleep", new=fake_sleep):
+                    await self.image_gen._generate_one_with_retries(
+                        client,
+                        config,
+                        payload,
+                        attempts=2,
+                        job_label="[job 1/1]",
+                        quiet=True,
+                    )
+
+        with self.assertRaises(httpx.ReadTimeout):
+            asyncio.run(run())
+
+        self.assertEqual(request_count, 2)
+        self.assertEqual(sleep_calls, [])
+
+    def test_async_stream_response_extracts_completed_image(self):
+        config = self.image_gen.APIConfig(
+            base_url="https://sub-api.example.com/v1",
+            api_key="sk-test",
+            default_model="gpt-image-2",
+            timeout_seconds=10,
+        )
+        payload = {
+            "model": "gpt-image-2",
+            "prompt": "a blue circle",
+            "stream": True,
+            "response_format": "b64_json",
+        }
+        stream_body = (
+            "event: image_generation.partial_image\n"
+            'data: {"type":"image_generation.partial_image","b64_json":"cGFydGlhbA=="}\n\n'
+            "event: image_generation.completed\n"
+            'data: {"type":"image_generation.completed","b64_json":"ZmluYWw="}\n\n'
+        )
+
+        async def handler(request):
+            return httpx.Response(
+                200,
+                headers={"content-type": "text/event-stream"},
+                text=stream_body,
+            )
+
+        async def run():
+            transport = httpx.MockTransport(handler)
+            async with httpx.AsyncClient(transport=transport) as client:
+                return await self.image_gen._post_json_api_async(
+                    client,
+                    config,
+                    "/images/generations",
+                    payload,
+                )
+
+        response = asyncio.run(run())
+
+        self.assertEqual(self.image_gen._extract_b64_images(response), ["ZmluYWw="])
 
     def test_edit_http_request_uses_multipart_without_sdk_headers(self):
         config = self.image_gen.APIConfig(

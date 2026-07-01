@@ -86,6 +86,7 @@ python "<skill-root>/scripts/image_gen.py" generate `
   --quality medium `
   --size 1024x1024 `
   --out "<skill-root>/output/alpine-cabin.png" `
+  --stream `
   --quiet
 ```
 
@@ -96,8 +97,11 @@ Useful options:
 - `--size`: `auto` or a valid model size.
 - `--n`: 1-15 variants for one prompt.
 - `--output-format`: `png`, `jpeg`, or `webp`.
+- `--stream`: request compatible event-stream image output and parse the final completed image. Use this by default for sub2api generation because long-running non-streaming image requests can sit idle until the final image is ready.
 - `--downscale-max-dim`: also write a smaller copy for web usage.
 - `--quiet`: suppress routine progress logs while still showing errors.
+
+For multiple requested images, prefer `generate-batch` with one JSONL line per desired output instead of one `generate --n <count>` request. Each batch job is isolated, so completed images remain written even if another job times out.
 
 ## Edit
 
@@ -127,10 +131,14 @@ Run:
 python "<skill-root>/scripts/image_gen.py" generate-batch `
   --input tmp/imagegen/prompts.jsonl `
   --concurrency 5 `
+  --max-attempts 2 `
+  --stream `
   --quiet
 ```
 
 Per-job overrides include `model`, `size`, `quality`, `background`, `output_format`, `output_compression`, `moderation`, `n`, `out`, and all prompt augmentation fields.
+
+`--max-attempts` defaults to `2`: the first request plus one immediate retry for transient failures such as timeouts, connection resets, 429, 408, and 5xx responses. There is no retry cooldown sleep. If the second attempt fails, that job is marked failed and no further retry is attempted.
 
 When `--out-dir` is omitted, batch outputs default to `<skill-root>/output/batch/`.
 

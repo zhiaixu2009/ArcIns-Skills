@@ -101,7 +101,11 @@ The CLI expects OpenAI Images-style responses with:
 }
 ```
 
-The CLI decodes `b64_json` and writes the requested output files. Streaming is supported when the upstream returns compatible event-stream data, but non-streaming output is the normal path.
+The CLI decodes `b64_json` and writes the requested output files. It supports both standard JSON responses and compatible event-stream responses.
+
+For sub2api generation, prefer `--stream`. The server can return `text/event-stream` events such as `image_generation.partial_image` and `image_generation.completed`; the CLI ignores partial images and saves the final completed `b64_json`. This avoids long idle periods on the downstream connection when an upstream image job takes several minutes.
+
+Prompt-only requests such as `{"prompt":"..."}` are classified by sub2api as `images-basic`. Requests with explicit `model`, `size`, `quality`, `output_format`, `stream`, masks, or other native options are classified as `images-native`. The CLI uses the native path when it needs explicit model/options or streaming.
 
 ## Failure guidance
 

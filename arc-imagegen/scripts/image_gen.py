@@ -30,6 +30,7 @@ DEFAULT_SIZE = "auto"
 DEFAULT_QUALITY = "medium"
 DEFAULT_OUTPUT_FORMAT = "png"
 DEFAULT_CONCURRENCY = 5
+DEFAULT_BATCH_MAX_ATTEMPTS = 2
 MAX_IMAGES_PER_REQUEST = 15
 DEFAULT_DOWNSCALE_SUFFIX = "-web"
 DEFAULT_SKILL_ROOT = Path(__file__).resolve().parents[1]
@@ -489,6 +490,65 @@ def _parse_api_json(response: Any) -> Mapping[str, Any]:
     return data
 
 
+def _is_event_stream_response(response: Any) -> bool:
+    content_type = str(response.headers.get("content-type", "")).lower()
+    return "text/event-stream" in content_type
+
+
+def _iter_sse_data_blocks(text: str) -> Iterable[str]:
+    data_lines: List[str] = []
+    for raw_line in text.splitlines():
+        line = raw_line.rstrip("\r")
+        if not line:
+            if data_lines:
+                yield "\n".join(data_lines)
+                data_lines = []
+            continue
+        if line.startswith(":"):
+            continue
+        if line.startswith("data:"):
+            data_lines.append(line.split(":", 1)[1].lstrip())
+    if data_lines:
+        yield "\n".join(data_lines)
+
+
+def _parse_api_event_stream(response: Any) -> Mapping[str, Any]:
+    images: List[str] = []
+    fallback_images: List[str] = []
+    last_error = ""
+
+    for data_block in _iter_sse_data_blocks(response.text):
+        if data_block == "[DONE]":
+            continue
+        try:
+            event = json.loads(data_block)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        error = event.get("error")
+        if isinstance(error, dict):
+            last_error = str(error.get("message") or error.get("code") or error)
+            continue
+        event_type = str(event.get("type", "")).lower()
+        image_b64 = event.get("b64_json")
+        if not isinstance(image_b64, str) or not image_b64:
+            continue
+        if "partial" in event_type:
+            continue
+        if "completed" in event_type or not event_type:
+            images.append(image_b64)
+        else:
+            fallback_images.append(image_b64)
+
+    if not images:
+        images = fallback_images
+    if not images:
+        detail = f": {last_error}" if last_error else ""
+        raise ImageAPIError(f"Images API event stream did not contain a completed b64_json image{detail}.")
+    return {"data": [{"b64_json": image_b64} for image_b64 in images]}
+
+
 def _extract_b64_images(response_data: Mapping[str, Any]) -> List[str]:
     items = response_data.get("data")
     if not isinstance(items, list) or not items:
@@ -526,6 +586,8 @@ def _post_json_api(
     with httpx.Client(**_http_client_kwargs(config, transport)) as client:
         response = client.post(_api_url(config, endpoint), json=dict(payload))
     _raise_for_api_error(response)
+    if _is_event_stream_response(response):
+        return _parse_api_event_stream(response)
     return _parse_api_json(response)
 
 
@@ -537,6 +599,8 @@ async def _post_json_api_async(
 ) -> Mapping[str, Any]:
     response = await client.post(_api_url(config, endpoint), json=dict(payload))
     _raise_for_api_error(response)
+    if _is_event_stream_response(response):
+        return _parse_api_event_stream(response)
     return _parse_api_json(response)
 
 
@@ -782,33 +846,6 @@ def _job_output_paths(
     ]
 
 
-def _extract_retry_after_seconds(exc: Exception) -> Optional[float]:
-    headers = getattr(exc, "headers", None)
-    if headers is not None:
-        try:
-            retry_after = headers.get("retry-after") or headers.get("Retry-After")
-        except Exception:
-            retry_after = None
-        if retry_after:
-            try:
-                return float(retry_after)
-            except Exception:
-                return None
-
-    for attr in ("retry_after", "retry_after_seconds"):
-        val = getattr(exc, attr, None)
-        if isinstance(val, (int, float)) and val >= 0:
-            return float(val)
-    msg = str(exc)
-    m = re.search(r"retry[- ]after[:= ]+([0-9]+(?:\\.[0-9]+)?)", msg, re.IGNORECASE)
-    if m:
-        try:
-            return float(m.group(1))
-        except Exception:
-            return None
-    return None
-
-
 def _is_rate_limit_error(exc: Exception) -> bool:
     if getattr(exc, "status_code", None) == 429:
         return True
@@ -857,15 +894,11 @@ async def _generate_one_with_retries(
                 raise
             if attempt == attempts:
                 raise
-            sleep_s = _extract_retry_after_seconds(exc)
-            if sleep_s is None:
-                sleep_s = min(60.0, 2.0**attempt)
             if not quiet:
                 print(
-                    f"{job_label} attempt {attempt}/{attempts} failed ({exc.__class__.__name__}); retrying in {sleep_s:.1f}s",
+                    f"{job_label} attempt {attempt}/{attempts} failed ({exc.__class__.__name__}); retrying now",
                     file=sys.stderr,
                 )
-            await asyncio.sleep(sleep_s)
     raise last_exc or RuntimeError("unknown error")
 
 
@@ -884,6 +917,9 @@ async def _run_generate_batch(args: argparse.Namespace) -> int:
         "output_compression": args.output_compression,
         "moderation": args.moderation,
     }
+    if getattr(args, "stream", False):
+        base_payload["stream"] = True
+        base_payload["response_format"] = "b64_json"
 
     if args.dry_run:
         for i, job in enumerate(jobs, start=1):
@@ -1036,6 +1072,9 @@ def _generate(args: argparse.Namespace) -> None:
         "output_compression": args.output_compression,
         "moderation": args.moderation,
     }
+    if args.stream:
+        payload["stream"] = True
+        payload["response_format"] = "b64_json"
     payload = {k: v for k, v in payload.items() if v is not None}
 
     output_format = _normalize_output_format(args.output_format)
@@ -1273,6 +1312,7 @@ def main() -> int:
 
     gen_parser = subparsers.add_parser("generate", help="Create a new image")
     _add_shared_args(gen_parser)
+    gen_parser.add_argument("--stream", action="store_true", help="Use event-stream image generation responses")
     gen_parser.set_defaults(func=_generate)
 
     batch_parser = subparsers.add_parser(
@@ -1282,7 +1322,8 @@ def main() -> int:
     _add_shared_args(batch_parser)
     batch_parser.add_argument("--input", required=True, help="Path to JSONL file (one job per line)")
     batch_parser.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY)
-    batch_parser.add_argument("--max-attempts", type=int, default=3)
+    batch_parser.add_argument("--max-attempts", type=int, default=DEFAULT_BATCH_MAX_ATTEMPTS)
+    batch_parser.add_argument("--stream", action="store_true", help="Use event-stream image generation responses")
     batch_parser.add_argument("--fail-fast", action="store_true")
     batch_parser.set_defaults(func=_generate_batch, out_dir=str(DEFAULT_BATCH_OUTPUT_DIR))
 

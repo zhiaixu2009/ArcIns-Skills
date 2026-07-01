@@ -62,6 +62,20 @@ ARC_IMAGEGEN_TIMEOUT_SECONDS
 使用 $arc-imagegen 生成一个笔记应用的方形图标。
 ```
 
+技能默认会在生成图片时使用流式请求，等价于 CLI 的 `--stream` 参数。这个模式适合 sub2api：服务端可以在长耗时生图过程中返回 event-stream 数据，避免客户端在等待最终图片时因为下游连接长时间无数据而读超时。
+
+也可以直接运行 CLI：
+
+```bash
+python arc-imagegen/scripts/image_gen.py generate \
+  --prompt "一个简单的蓝色圆形图标" \
+  --quality medium \
+  --size 1024x1024 \
+  --out arc-imagegen/output/icon.png \
+  --stream \
+  --quiet
+```
+
 编辑图片时，请提供本地图片路径和要修改的内容：
 
 ```text
@@ -73,7 +87,21 @@ ARC_IMAGEGEN_TIMEOUT_SECONDS
 运行 dry-run，不发起真实 API 请求：
 
 ```bash
-python arc-imagegen/scripts/image_gen.py generate --prompt "一个简单的蓝色圆形图标" --dry-run
+python arc-imagegen/scripts/image_gen.py generate --prompt "一个简单的蓝色圆形图标" --stream --dry-run
+```
+
+如果真实生图经常超时，先确认配置里的 API key 可用，再使用 `--stream` 复测。非流式请求需要等完整图片生成后才返回，长耗时任务更容易触发客户端读超时；流式请求会解析最终的 `image_generation.completed` 事件并保存图片。
+
+生成多张图片时，建议使用 `generate-batch`，并把每张图写成一个独立 JSONL 任务，不要把多张图都放进同一个 `--n 5` 请求。批量任务默认每个任务最多请求 2 次：第一次失败或超时后立即重试 1 次；第二次仍失败就放弃该任务，不再等待冷却或继续重试。
+
+```bash
+python arc-imagegen/scripts/image_gen.py generate-batch \
+  --input prompts.jsonl \
+  --out-dir arc-imagegen/output/batch \
+  --concurrency 5 \
+  --max-attempts 2 \
+  --stream \
+  --quiet
 ```
 
 运行本地测试：
