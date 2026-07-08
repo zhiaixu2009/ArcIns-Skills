@@ -12,11 +12,13 @@ Use the bundled CLI directly. Do not create one-off runners unless the user expl
 
 ## Configuration
 
-The default config file lives at the skill root:
+User API configuration should live outside the plugin so plugin updates never overwrite keys. The preferred config file is:
 
 ```text
-<skill-root>/config.json
+$CODEX_HOME/arc-imagegen/config.json
 ```
+
+When `CODEX_HOME` is unset, use `%USERPROFILE%\.codex\arc-imagegen\config.json` on Windows or `~/.codex/arc-imagegen/config.json` on macOS/Linux.
 
 Use `--config` only when temporarily overriding the default config:
 
@@ -32,8 +34,10 @@ Config lookup order:
 
 1. `--config <path>`
 2. `ARC_IMAGEGEN_CONFIG`
-3. `<skill-root>/config.json`, if present
-4. Environment overrides: `ARC_IMAGEGEN_BASE_URL`, `ARC_IMAGEGEN_API_KEY`, `ARC_IMAGEGEN_DEFAULT_MODEL`, `ARC_IMAGEGEN_TIMEOUT_SECONDS`
+3. `$CODEX_HOME/arc-imagegen/config.json`, if present
+4. `%USERPROFILE%\.codex\arc-imagegen\config.json` or `~/.codex/arc-imagegen/config.json`, if present
+5. `<skill-root>/config.json`, if present
+6. Environment overrides: `ARC_IMAGEGEN_BASE_URL`, `ARC_IMAGEGEN_API_KEY`, `ARC_IMAGEGEN_DEFAULT_MODEL`, `ARC_IMAGEGEN_TIMEOUT_SECONDS`
 
 Config may be TOML or JSON:
 
@@ -97,7 +101,7 @@ Useful options:
 - `--size`: `auto` or a valid model size.
 - `--n`: 1-15 variants for one prompt.
 - `--output-format`: `png`, `jpeg`, or `webp`.
-- `--stream`: compatibility flag. Generation requests are always sent as event-stream output with `stream=true` and `response_format=b64_json`, even when this flag is omitted. The CLI no longer offers synchronous image generation because long-running non-streaming requests can sit idle until the final image is ready.
+- `--stream`: compatibility flag. All image output requests (`generate`, `generate-batch`, and `edit`) are always sent as event-stream output with `stream=true`, `response_format=b64_json`, and `Accept: text/event-stream`, even when this flag is omitted. The CLI no longer offers synchronous image output because long-running non-streaming requests can sit idle until the final image is ready.
 - `--downscale-max-dim`: also write a smaller copy for web usage.
 - `--quiet`: suppress routine progress logs while still showing errors.
 
@@ -111,7 +115,8 @@ Use `edit` when the user asks to modify existing local images.
 python "<skill-root>/scripts/image_gen.py" edit `
   --image input.png `
   --prompt "Replace only the background with a warm sunset; keep the product unchanged" `
-  --out "<skill-root>/output/sunset-edit.png"
+  --out "<skill-root>/output/sunset-edit.png" `
+  --stream
 ```
 
 Pass multiple `--image` flags in a meaningful order, then describe each image by index and role in the prompt. Use `--mask <png>` for a single edit mask when needed.

@@ -19,7 +19,7 @@ Do not use Codex's built-in `image_gen` tool from this skill.
 - Keep progress terse. Do not narrate reasoning, dry-run payloads, retry logs, or validation details during routine generation.
 - Generate at most 15 images for one user request. If the user asks for more than 15, generate the first 15 and state that the skill limit is 15 per request.
 - When the user asks for multiple images, prefer independent jobs through `generate-batch` instead of one `generate --n <count>` API call. This preserves completed images if one request times out.
-- Generation requests must always use event-stream output. `scripts/image_gen.py` forces `stream=true` and `response_format=b64_json` for `generate` and `generate-batch`; do not attempt synchronous image generation.
+- All image output requests must use event-stream output. `scripts/image_gen.py` forces `stream=true`, `response_format=b64_json`, and `Accept: text/event-stream` for `generate`, `generate-batch`, and `edit`; do not attempt synchronous image generation or editing.
 - For generation retries, use at most 2 attempts per independent image request: the original request plus one immediate retry. Do not wait for retry cooldowns, and do not retry a job again after the second failure.
 - If a generation job fails after its second attempt, report that failed job and keep the successfully written images. Do not rerun the same CLI command again unless the user explicitly asks.
 - Display every generated image in the Codex conversation by calling the local image-viewing tool on each output file, then list the generated image files in the final text response.
@@ -28,13 +28,15 @@ Do not use Codex's built-in `image_gen` tool from this skill.
 
 ## Configuration
 
-Path convention: `<skill-root>` means the absolute path to the installed `arc-imagegen` skill directory.
+Path convention: `<skill-root>` means the absolute path to the installed `arc-imagegen` skill directory. User API configuration should live outside the plugin so plugin updates never overwrite keys.
 
-Default config:
+Preferred user config:
 
 ```text
-<skill-root>/config.json
+$CODEX_HOME/arc-imagegen/config.json
 ```
+
+When `CODEX_HOME` is unset, use `%USERPROFILE%\.codex\arc-imagegen\config.json` on Windows or `~/.codex/arc-imagegen/config.json` on macOS/Linux.
 
 Supported keys:
 
@@ -51,8 +53,10 @@ Lookup order:
 
 1. `--config <path>`
 2. `ARC_IMAGEGEN_CONFIG`
-3. `<skill-root>/config.json`
-4. `ARC_IMAGEGEN_*` environment variables override file values
+3. `$CODEX_HOME/arc-imagegen/config.json`
+4. `%USERPROFILE%\.codex\arc-imagegen\config.json` or `~/.codex/arc-imagegen/config.json`
+5. `<skill-root>/config.json`
+6. `ARC_IMAGEGEN_*` environment variables override file values
 
 Environment overrides:
 
@@ -82,8 +86,8 @@ In direct generation:
 1. Determine whether the user wants generation (`generate`) or editing (`edit`).
 2. Build the `--prompt`: use automatic prompt processing by default, or direct generation when the user explicitly requested it.
 3. Choose count, size, quality, and output path. Default quality is `medium`; default model is `gpt-image-2`; maximum count is 15.
-4. For one image, run `scripts/image_gen.py generate` with `--quiet`; `--stream` may be included for compatibility but is no longer required because generation is always stream-only. For multiple images, create one JSONL job per desired image and run `generate-batch --max-attempts 2 --quiet`.
-5. The sub2api images endpoint can keep long-running requests alive through event-stream output, which reduces client-side read timeouts while still saving the final `b64_json` image.
+4. For one new image, run `scripts/image_gen.py generate` with `--quiet`; `--stream` may be included for compatibility but is no longer required because image output requests are always stream-only. For multiple images, create one JSONL job per desired image and run `generate-batch --max-attempts 2 --quiet`. For image editing, run `edit` with the same stream-only invariant.
+5. The sub2api images endpoints can keep long-running requests alive through event-stream output, which reduces client-side read timeouts while still saving the final `b64_json` image.
 6. After files are written, immediately call the local image-viewing tool once per output image so every generated image appears in the Codex conversation before the final text response.
 7. Final response: write one concise Simplified Chinese sentence with model, quality, count, and the output directory, followed by a compact list of the generated image files. Do not include long validation or process details.
 
@@ -111,6 +115,7 @@ python "<skill-root>/scripts/image_gen.py" edit `
   --prompt "<direct edit prompt from the user's intent>" `
   --quality medium `
   --out "<skill-root>/output/edit.png" `
+  --stream `
   --quiet
 ```
 
@@ -131,7 +136,7 @@ python "<skill-root>/scripts/image_gen.py" generate-batch `
 If generation fails before reaching the API:
 
 - Check that `httpx` is installed, preferably from `<skill-root>/requirements.txt`.
-- Check that `<skill-root>/config.json` exists or `ARC_IMAGEGEN_API_KEY` is set.
+- Check that the Codex user config exists (`$CODEX_HOME/arc-imagegen/config.json` or `~/.codex/arc-imagegen/config.json`) or `ARC_IMAGEGEN_API_KEY` is set.
 - Run `python "<skill-root>/scripts/image_gen.py" generate --prompt "test" --dry-run` to verify config resolution without a live request.
 - Never ask the user to paste API keys into chat; ask them to edit config or set environment variables.
 

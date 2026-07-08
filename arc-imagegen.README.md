@@ -1,51 +1,70 @@
 # ARC Image Gen 技能
 
-`arc-imagegen` 是一个 Codex 技能，用于通过可配置的 OpenAI 兼容 Images API 生成和编辑位图图片，也适用于 sub2api 风格的中转服务。
+`arc-imagegen` 是 `arcins-skills` Codex 插件中的第一个技能，用于通过 sub2api 或其他 OpenAI 兼容 Images API 生成和编辑位图图片。它面向 Codex 使用场景封装了提示词组织、流式生图、批量任务、失败重试和本地文件保存。
 
-## 安装
+## 安装方式
 
-将 `arc-imagegen/` 目录安装或复制到你的 Codex skills 目录：
+本仓库现在使用仓库本地插件市场安装插件，不再把 `arc-imagegen/` 作为单独目录手动复制到 Codex skills 目录。
 
-- Windows 默认位置：`%USERPROFILE%\.codex\skills\arc-imagegen`
-- macOS/Linux 默认位置：`~/.codex/skills/arc-imagegen`
-- 自定义 Codex 主目录：`$CODEX_HOME/skills/arc-imagegen`
+在仓库根目录执行：
 
-安装后重启 Codex，让新技能被加载。
+```bash
+codex plugin marketplace add <repo-root>
+codex plugin add arcins-skills@arcins
+```
 
-如果通过 Codex 从 GitHub 安装，请让 Codex 从这个仓库安装路径为 `arc-imagegen` 的技能。
+安装后运行配置脚本：
+
+```bash
+python plugins/arcins-skills/scripts/setup-arc-imagegen-config.py
+```
+
+配置完成后，新开一个 Codex 线程，验证 `$arc-imagegen` 可以被加载。
 
 ## 依赖
 
 安装随技能提供的 Python 依赖：
 
 ```bash
-python -m pip install -r arc-imagegen/requirements.txt
+python -m pip install -r plugins/arcins-skills/skills/arc-imagegen/requirements.txt
 ```
 
 `httpx` 用于真实 API 请求。`pillow` 用于可选的图片缩放和色键背景移除。
 
 ## 配置
 
-复制示例配置文件：
+真实 API 配置不放进插件目录，避免插件更新覆盖密钥。推荐使用安装配置脚本写入 Codex 用户目录：
 
 ```bash
-cp arc-imagegen/config.json.example arc-imagegen/config.json
+python plugins/arcins-skills/scripts/setup-arc-imagegen-config.py
 ```
 
-编辑 `arc-imagegen/config.json`：
+脚本默认写入：
+
+- 已设置 `CODEX_HOME`：`$CODEX_HOME/arc-imagegen/config.json`
+- 未设置 `CODEX_HOME`：`~/.codex/arc-imagegen/config.json`
+
+配置内容示例：
 
 ```json
 {
-  "base_url": "https://your-openai-compatible-images-api.example.com",
+  "base_url": "https://sub-api.arcclawai.com",
   "api_key": "YOUR_API_KEY",
   "default_model": "gpt-image-2",
   "timeout_seconds": 300
 }
 ```
 
-脚本会为未带版本路径的兼容 API 地址追加 `/v1`。不要把 API key 写进提示词、shell 历史记录或共享日志。
+配置查找顺序：
 
-也可以使用环境变量配置：
+1. `--config <path>`
+2. `ARC_IMAGEGEN_CONFIG`
+3. `$CODEX_HOME/arc-imagegen/config.json`
+4. `%USERPROFILE%\.codex\arc-imagegen\config.json` 或 `~/.codex/arc-imagegen/config.json`
+5. `<skill-root>/config.json`
+6. `ARC_IMAGEGEN_*` 环境变量覆盖文件值
+
+可用环境变量：
 
 ```bash
 ARC_IMAGEGEN_BASE_URL
@@ -54,32 +73,54 @@ ARC_IMAGEGEN_DEFAULT_MODEL
 ARC_IMAGEGEN_TIMEOUT_SECONDS
 ```
 
-## 使用
+不要把 API key 写进提示词、shell 历史记录、共享日志或插件目录。
 
-在 Codex 中按名称调用这个技能：
+## 在 Codex 中使用
+
+在新线程中按名称调用技能：
 
 ```text
 使用 $arc-imagegen 生成一个笔记应用的方形图标。
 ```
 
-技能生成图片时只使用流式请求。CLI 会自动发送 `stream=true` 和 `response_format=b64_json`，即使没有显式传入 `--stream` 也不会走同步生成路径。这个模式适合 sub2api：服务端可以在长耗时生图过程中返回 event-stream 数据，避免客户端在等待最终图片时因为下游连接长时间无数据而读超时。`--stream` 参数仍然保留，主要用于兼容旧命令。
+生成和编辑图片时都只走流式请求。CLI 会自动发送 `stream=true`、`response_format=b64_json` 和 `Accept: text/event-stream`，即使没有显式传入 `--stream` 也不会走同步生成路径。这样更适合 sub2api 等中转服务：服务端可以在长耗时生图或改图过程中持续返回 event-stream 数据，降低同步请求在代理层超时的概率。
 
-也可以直接运行 CLI：
+## 直接运行 CLI
+
+单图生成：
 
 ```bash
-python arc-imagegen/scripts/image_gen.py generate \
+python plugins/arcins-skills/skills/arc-imagegen/scripts/image_gen.py generate \
   --prompt "一个简单的蓝色圆形图标" \
   --quality medium \
   --size 1024x1024 \
-  --out arc-imagegen/output/icon.png \
+  --out plugins/arcins-skills/skills/arc-imagegen/output/icon.png \
   --stream \
   --quiet
 ```
 
-编辑图片时，请提供本地图片路径和要修改的内容：
+编辑图片：
 
-```text
-使用 $arc-imagegen 编辑 ./input.png，将背景替换为温暖的日落场景，同时保持产品主体不变。
+```bash
+python plugins/arcins-skills/skills/arc-imagegen/scripts/image_gen.py edit \
+  --image input.png \
+  --prompt "将背景替换为温暖的日落场景，同时保持产品主体不变" \
+  --quality medium \
+  --out plugins/arcins-skills/skills/arc-imagegen/output/edit.png \
+  --stream \
+  --quiet
+```
+
+批量生成时，建议把每张图写成独立 JSONL 任务，不要把多张图都放进同一个 `--n 5` 请求。批量任务默认每个任务最多请求 2 次：第一次失败或超时后立即重试 1 次；第二次仍失败就放弃该任务，不再等待冷却或继续重试。
+
+```bash
+python plugins/arcins-skills/skills/arc-imagegen/scripts/image_gen.py generate-batch \
+  --input prompts.jsonl \
+  --out-dir plugins/arcins-skills/skills/arc-imagegen/output/batch \
+  --concurrency 5 \
+  --max-attempts 2 \
+  --stream \
+  --quiet
 ```
 
 ## 验证
@@ -87,31 +128,22 @@ python arc-imagegen/scripts/image_gen.py generate \
 运行 dry-run，不发起真实 API 请求：
 
 ```bash
-python arc-imagegen/scripts/image_gen.py generate --prompt "一个简单的蓝色圆形图标" --stream --dry-run
-```
-
-如果真实生图经常超时，先确认配置里的 API key 可用，再降低批量并发或缩小尺寸复测。生成命令已强制使用流式请求，不再提供同步生成模式；流式请求会解析最终的 `image_generation.completed` 事件并保存图片。
-
-生成多张图片时，建议使用 `generate-batch`，并把每张图写成一个独立 JSONL 任务，不要把多张图都放进同一个 `--n 5` 请求。批量任务默认每个任务最多请求 2 次：第一次失败或超时后立即重试 1 次；第二次仍失败就放弃该任务，不再等待冷却或继续重试。
-
-```bash
-python arc-imagegen/scripts/image_gen.py generate-batch \
-  --input prompts.jsonl \
-  --out-dir arc-imagegen/output/batch \
-  --concurrency 5 \
-  --max-attempts 2 \
-  --stream \
+python plugins/arcins-skills/skills/arc-imagegen/scripts/image_gen.py generate \
+  --prompt "一个简单的蓝色圆形图标" \
+  --dry-run \
   --quiet
 ```
+
+`generate`、`generate-batch` 和 `edit` 的 dry-run 输出中都应包含 `stream: true` 和 `response_format: b64_json`。
 
 运行本地测试：
 
 ```bash
-python -m unittest discover -s arc-imagegen/tests
+python -m unittest discover -s plugins/arcins-skills/skills/arc-imagegen/tests
 ```
 
-使用 Codex 的 skill creator 校验工具验证技能目录：
+验证技能目录：
 
 ```bash
-python <path-to-skill-creator>/scripts/quick_validate.py arc-imagegen
+python C:/Users/Administrator/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/arcins-skills/skills/arc-imagegen
 ```

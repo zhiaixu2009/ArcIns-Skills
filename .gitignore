@@ -11,3 +11,5 @@ __pycache__/
 .vscode/
 arc-imagegen/output/*
 config.json
+plugins/arcins-skills/skills/*/output/
+plugins/arcins-skills/skills/*/config.json

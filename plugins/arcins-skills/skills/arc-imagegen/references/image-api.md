@@ -11,7 +11,7 @@ The CLI uses `httpx` with `base_url` normalized to `/v1`, then calls:
 
 sub2api also registers `/images/generations` and `/images/edits`, but clients should prefer the `/v1/...` form because the CLI normalizes compatible API hosts to `/v1`.
 
-Live requests intentionally send only the necessary compatible headers: Bearer authorization, `Accept`, and `User-Agent: arc-imagegen/1.0`. Generation requests with `stream=true` send `Accept: text/event-stream`; non-streaming JSON helpers and edit requests keep JSON-compatible accept headers. Do not reintroduce OpenAI SDK generated `x-stainless-*` headers for sub2api calls; some upstream paths block those headers when they are forwarded.
+Live requests intentionally send only the necessary compatible headers: Bearer authorization, `Accept`, and `User-Agent: arc-imagegen/1.0`. All image output requests (`generate`, `generate-batch`, and `edit`) force `stream=true`, `response_format=b64_json`, and `Accept: text/event-stream`. Do not reintroduce OpenAI SDK generated `x-stainless-*` headers for sub2api calls; some upstream paths block those headers when they are forwarded.
 
 ## Authentication
 
@@ -24,7 +24,7 @@ Use Bearer auth from config:
 }
 ```
 
-Do not pass keys in shell arguments. Fill `<skill-root>/config.json`, or use `--config`, `ARC_IMAGEGEN_CONFIG`, or `ARC_IMAGEGEN_API_KEY`.
+Do not pass keys in shell arguments. Fill the Codex user config (`$CODEX_HOME/arc-imagegen/config.json` or `~/.codex/arc-imagegen/config.json`), or use `--config`, `ARC_IMAGEGEN_CONFIG`, or `ARC_IMAGEGEN_API_KEY`.
 
 ## Supported models
 
@@ -101,15 +101,15 @@ The CLI expects OpenAI Images-style responses with:
 }
 ```
 
-The CLI decodes `b64_json` and writes the requested output files. Generation requests are always sent with `stream=true` and `response_format=b64_json`; compatible event-stream responses are parsed and normalized to the same `data[].b64_json` shape. Edit requests continue to use the Images edit endpoint's normal multipart response.
+The CLI decodes `b64_json` and writes the requested output files. All image output requests are always sent with `stream=true` and `response_format=b64_json`; compatible event-stream responses are parsed and normalized to the same `data[].b64_json` shape. Edit requests still use the Images edit endpoint's multipart upload shape, but the multipart form also carries the forced stream fields and requests `text/event-stream`.
 
-For sub2api generation, the server can return `text/event-stream` events such as `image_generation.partial_image` and `image_generation.completed`; the CLI ignores partial images and saves the final completed `b64_json`. This avoids long idle periods on the downstream connection when an upstream image job takes several minutes. The `--stream` flag is retained only for command compatibility because streaming is now forced for all generation calls.
+For sub2api image output, the server can return `text/event-stream` events such as `image_generation.partial_image` and `image_generation.completed`; the CLI ignores partial images and saves the final completed `b64_json`. This avoids long idle periods on the downstream connection when an upstream image job takes several minutes. The `--stream` flag is retained only for command compatibility because streaming is now forced for all generate, batch, and edit calls.
 
 Prompt-only requests such as `{"prompt":"..."}` are classified by sub2api as `images-basic`. Requests with explicit `model`, `size`, `quality`, `output_format`, `stream`, masks, or other native options are classified as `images-native`. The CLI uses the native path when it needs explicit model/options or streaming.
 
 ## Failure guidance
 
-- Missing config/key: ask the user to fill `<skill-root>/config.json`, set `ARC_IMAGEGEN_API_KEY`, or provide `--config`.
+- Missing config/key: ask the user to fill the Codex user config (`$CODEX_HOME/arc-imagegen/config.json` or `~/.codex/arc-imagegen/config.json`), set `ARC_IMAGEGEN_API_KEY`, or provide `--config`.
 - Unsupported option for `gpt-image-2`: remove the option only if it is not required; for true transparency, ask before switching to `gpt-image-1.5`.
 - Existing output path: reruns fail unless `--force` is passed.
 - `httpx` missing: install with `python -m pip install --user httpx`.

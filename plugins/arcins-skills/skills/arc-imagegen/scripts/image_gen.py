@@ -41,6 +41,7 @@ DEFAULT_API_BASE_URL = "https://api.openai.com/v1"
 DEFAULT_TIMEOUT_SECONDS = 300.0
 DEFAULT_USER_AGENT = "arc-imagegen/1.0"
 DEFAULT_CONFIG_PATH = DEFAULT_SKILL_ROOT / "config.json"
+USER_CONFIG_SUBPATH = Path("arc-imagegen") / "config.json"
 GPT_IMAGE_MODEL_PREFIX = "gpt-image-"
 
 ALLOWED_LEGACY_SIZES = {"1024x1024", "1536x1024", "1024x1536", "auto"}
@@ -122,12 +123,54 @@ def _read_config_data(path: Path) -> Mapping[str, Any]:
     return raw
 
 
-def _config_path_from_sources(config_path: Optional[str]) -> Optional[Path]:
-    raw = config_path or os.getenv("ARC_IMAGEGEN_CONFIG")
+def _codex_home_config_path() -> Optional[Path]:
+    raw = os.getenv("CODEX_HOME")
+    if not raw:
+        return None
+    return Path(raw).expanduser() / USER_CONFIG_SUBPATH
+
+
+def _default_user_config_path() -> Optional[Path]:
+    raw = os.getenv("USERPROFILE")
     if raw:
-        return Path(raw).expanduser()
-    if DEFAULT_CONFIG_PATH.exists():
-        return DEFAULT_CONFIG_PATH
+        base = Path(raw).expanduser() / ".codex"
+    else:
+        try:
+            base = Path.home() / ".codex"
+        except RuntimeError:
+            return None
+    return base / USER_CONFIG_SUBPATH
+
+
+def _candidate_default_config_paths() -> List[Path]:
+    candidates: List[Path] = []
+    codex_home_config = _codex_home_config_path()
+    if codex_home_config is not None:
+        candidates.append(codex_home_config)
+    user_config = _default_user_config_path()
+    if user_config is not None:
+        candidates.append(user_config)
+    candidates.append(DEFAULT_CONFIG_PATH)
+
+    unique: List[Path] = []
+    seen = set()
+    for path in candidates:
+        key = str(path)
+        if key not in seen:
+            seen.add(key)
+            unique.append(path)
+    return unique
+
+
+def _config_path_from_sources(config_path: Optional[str]) -> Optional[Path]:
+    if config_path:
+        return Path(config_path).expanduser()
+    env_config = os.getenv("ARC_IMAGEGEN_CONFIG")
+    if env_config:
+        return Path(env_config).expanduser()
+    for path in _candidate_default_config_paths():
+        if path.exists():
+            return path
     return None
 
 
@@ -174,9 +217,11 @@ def _resolve_api_config(
     if dry_run:
         _warn("ARC Image Gen API key is not configured; dry-run only.")
         return config
+    user_config = _default_user_config_path() or Path("~") / ".codex" / USER_CONFIG_SUBPATH
     _die(
-        "ARC Image Gen API key is not configured. Set ARC_IMAGEGEN_API_KEY or create "
-        f"{DEFAULT_CONFIG_PATH} with api_key and base_url."
+        "ARC Image Gen API key is not configured. Set ARC_IMAGEGEN_API_KEY, create "
+        f"{user_config}, or run the plugin setup script "
+        "plugins/arcins-skills/scripts/setup-arc-imagegen-config.py."
     )
 
 
@@ -648,7 +693,8 @@ def _post_edit_api(
     transport: Any = None,
 ) -> Mapping[str, Any]:
     httpx = _import_httpx()
-    data = {key: _form_value(value) for key, value in payload.items()}
+    stream_payload = _force_image_stream(dict(payload))
+    data = {key: _form_value(value) for key, value in stream_payload.items()}
     handles: List[Any] = []
     files: List[Tuple[str, Tuple[str, Any, str]]] = []
 
@@ -664,7 +710,9 @@ def _post_edit_api(
             handles.append(handle)
             files.append(("mask", (mask_path.name, handle, _guess_mime_type(mask_path))))
 
-        with httpx.Client(**_http_client_kwargs(config, transport)) as client:
+        kwargs = _http_client_kwargs(config, transport)
+        kwargs["headers"] = _headers_for_json_payload(config, stream_payload)
+        with httpx.Client(**kwargs) as client:
             response = client.post(_api_url(config, "/images/edits"), data=data, files=files)
     finally:
         for handle in handles:
@@ -674,6 +722,8 @@ def _post_edit_api(
                 pass
 
     _raise_for_api_error(response)
+    if _is_event_stream_response(response):
+        return _parse_api_event_stream(response)
     return _parse_api_json(response)
 
 
@@ -826,7 +876,7 @@ def _merge_non_null(dst: Dict[str, Any], src: Dict[str, Any]) -> Dict[str, Any]:
     return merged
 
 
-def _force_generation_stream(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _force_image_stream(payload: Dict[str, Any]) -> Dict[str, Any]:
     payload["stream"] = True
     payload["response_format"] = "b64_json"
     return payload
@@ -936,7 +986,7 @@ async def _run_generate_batch(args: argparse.Namespace) -> int:
         "output_compression": args.output_compression,
         "moderation": args.moderation,
     }
-    _force_generation_stream(base_payload)
+    _force_image_stream(base_payload)
 
     if args.dry_run:
         for i, job in enumerate(jobs, start=1):
@@ -950,7 +1000,7 @@ async def _run_generate_batch(args: argparse.Namespace) -> int:
             job_payload["prompt"] = augmented
             job_payload = _merge_non_null(job_payload, {k: job.get(k) for k in base_payload.keys()})
             job_payload = {k: v for k, v in job_payload.items() if v is not None}
-            _force_generation_stream(job_payload)
+            _force_image_stream(job_payload)
 
             _validate_generate_payload(job_payload)
             effective_output_format = _normalize_output_format(job_payload.get("output_format"))
@@ -1001,7 +1051,7 @@ async def _run_generate_batch(args: argparse.Namespace) -> int:
         payload["prompt"] = augmented
         payload = _merge_non_null(payload, {k: job.get(k) for k in base_payload.keys()})
         payload = {k: v for k, v in payload.items() if v is not None}
-        _force_generation_stream(payload)
+        _force_image_stream(payload)
 
         n = int(payload.get("n", 1))
         _validate_generate_payload(payload)
@@ -1092,7 +1142,7 @@ def _generate(args: argparse.Namespace) -> None:
         "moderation": args.moderation,
     }
     payload = {k: v for k, v in payload.items() if v is not None}
-    _force_generation_stream(payload)
+    _force_image_stream(payload)
 
     output_format = _normalize_output_format(args.output_format)
     _validate_transparency(args.background, output_format)
@@ -1171,6 +1221,7 @@ def _edit(args: argparse.Namespace) -> None:
         "moderation": args.moderation,
     }
     payload = {k: v for k, v in payload.items() if v is not None}
+    _force_image_stream(payload)
 
     output_format = _normalize_output_format(args.output_format)
     _validate_transparency(args.background, output_format)
@@ -1332,7 +1383,7 @@ def main() -> int:
     gen_parser.add_argument(
         "--stream",
         action="store_true",
-        help="Compatibility flag; generation requests always use event-stream image output",
+        help="Compatibility flag; image output requests always use event-stream output",
     )
     gen_parser.set_defaults(func=_generate)
 
@@ -1347,7 +1398,7 @@ def main() -> int:
     batch_parser.add_argument(
         "--stream",
         action="store_true",
-        help="Compatibility flag; generation requests always use event-stream image output",
+        help="Compatibility flag; image output requests always use event-stream output",
     )
     batch_parser.add_argument("--fail-fast", action="store_true")
     batch_parser.set_defaults(func=_generate_batch, out_dir=str(DEFAULT_BATCH_OUTPUT_DIR))
@@ -1357,6 +1408,11 @@ def main() -> int:
     edit_parser.add_argument("--image", action="append", required=True)
     edit_parser.add_argument("--mask")
     edit_parser.add_argument("--input-fidelity")
+    edit_parser.add_argument(
+        "--stream",
+        action="store_true",
+        help="Compatibility flag; edit requests always use event-stream image output",
+    )
     edit_parser.set_defaults(func=_edit)
 
     args = parser.parse_args()
