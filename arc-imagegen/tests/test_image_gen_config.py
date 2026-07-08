@@ -92,12 +92,16 @@ class ImageGenConfigTests(unittest.TestCase):
         self.assertEqual(config.timeout_seconds, 222.0)
 
     def test_dry_run_allows_missing_api_key(self):
-        with patch.dict(os.environ, {}, clear=True):
-            config = self.image_gen._resolve_api_config(
-                config_path=None,
-                dry_run=True,
-                default_model="gpt-image-2",
-            )
+        with tempfile.TemporaryDirectory() as tmp:
+            missing_config = Path(tmp) / "missing-config.json"
+            with patch.dict(os.environ, {}, clear=True), patch.object(
+                self.image_gen, "DEFAULT_CONFIG_PATH", missing_config
+            ):
+                config = self.image_gen._resolve_api_config(
+                    config_path=None,
+                    dry_run=True,
+                    default_model="gpt-image-2",
+                )
 
         self.assertEqual(config.base_url, "https://api.openai.com/v1")
         self.assertEqual(config.api_key, "")
@@ -153,6 +157,40 @@ class ImageGenConfigTests(unittest.TestCase):
         self.assertFalse(any(name.lower().startswith("x-stainless") for name in request.headers))
         self.assertEqual(self.image_gen._extract_b64_images(response), ["aW1hZ2U="])
 
+    def test_generation_stream_request_uses_event_stream_accept_header(self):
+        config = self.image_gen.APIConfig(
+            base_url="https://sub-api.example.com/v1",
+            api_key="sk-test",
+            default_model="gpt-image-2",
+            timeout_seconds=10,
+        )
+        payload = {
+            "model": "gpt-image-2",
+            "prompt": "a blue circle",
+            "stream": True,
+            "response_format": "b64_json",
+        }
+        captured = {}
+
+        def handler(request):
+            captured["request"] = request
+            return httpx.Response(
+                200,
+                headers={"content-type": "text/event-stream"},
+                text='data: {"type":"image_generation.completed","b64_json":"ZmluYWw="}\n\n',
+            )
+
+        response = self.image_gen._post_json_api(
+            config,
+            "/images/generations",
+            payload,
+            transport=httpx.MockTransport(handler),
+        )
+
+        request = captured["request"]
+        self.assertEqual(request.headers["accept"], "text/event-stream")
+        self.assertEqual(self.image_gen._extract_b64_images(response), ["ZmluYWw="])
+
     def test_generation_stream_dry_run_includes_stream_payload(self):
         result = subprocess.run(
             [
@@ -169,6 +207,52 @@ class ImageGenConfigTests(unittest.TestCase):
             text=True,
             check=False,
         )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        request = json.loads(result.stdout)
+        self.assertTrue(request["stream"])
+        self.assertEqual(request["response_format"], "b64_json")
+
+    def test_generation_dry_run_forces_stream_payload(self):
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT_PATH),
+                "generate",
+                "--prompt",
+                "a blue circle",
+                "--dry-run",
+                "--quiet",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        request = json.loads(result.stdout)
+        self.assertTrue(request["stream"])
+        self.assertEqual(request["response_format"], "b64_json")
+
+    def test_batch_dry_run_forces_stream_payload(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            input_path = Path(tmp) / "jobs.jsonl"
+            input_path.write_text('{"prompt":"a blue circle"}\n', encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT_PATH),
+                    "generate-batch",
+                    "--input",
+                    str(input_path),
+                    "--dry-run",
+                    "--quiet",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
 
         self.assertEqual(result.returncode, 0, result.stderr)
         request = json.loads(result.stdout)

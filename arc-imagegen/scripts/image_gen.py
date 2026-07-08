@@ -457,6 +457,13 @@ def _api_headers(config: APIConfig) -> Dict[str, str]:
     }
 
 
+def _headers_for_json_payload(config: APIConfig, payload: Mapping[str, Any]) -> Dict[str, str]:
+    headers = _api_headers(config)
+    if payload.get("stream") is True:
+        headers["Accept"] = "text/event-stream"
+    return headers
+
+
 def _api_url(config: APIConfig, endpoint: str) -> str:
     endpoint = "/" + endpoint.strip("/")
     return config.base_url.rstrip("/") + endpoint
@@ -583,7 +590,9 @@ def _post_json_api(
     transport: Any = None,
 ) -> Mapping[str, Any]:
     httpx = _import_httpx()
-    with httpx.Client(**_http_client_kwargs(config, transport)) as client:
+    kwargs = _http_client_kwargs(config, transport)
+    kwargs["headers"] = _headers_for_json_payload(config, payload)
+    with httpx.Client(**kwargs) as client:
         response = client.post(_api_url(config, endpoint), json=dict(payload))
     _raise_for_api_error(response)
     if _is_event_stream_response(response):
@@ -597,7 +606,11 @@ async def _post_json_api_async(
     endpoint: str,
     payload: Mapping[str, Any],
 ) -> Mapping[str, Any]:
-    response = await client.post(_api_url(config, endpoint), json=dict(payload))
+    response = await client.post(
+        _api_url(config, endpoint),
+        json=dict(payload),
+        headers=_headers_for_json_payload(config, payload),
+    )
     _raise_for_api_error(response)
     if _is_event_stream_response(response):
         return _parse_api_event_stream(response)
@@ -813,6 +826,12 @@ def _merge_non_null(dst: Dict[str, Any], src: Dict[str, Any]) -> Dict[str, Any]:
     return merged
 
 
+def _force_generation_stream(payload: Dict[str, Any]) -> Dict[str, Any]:
+    payload["stream"] = True
+    payload["response_format"] = "b64_json"
+    return payload
+
+
 def _job_output_paths(
     *,
     out_dir: Path,
@@ -917,9 +936,7 @@ async def _run_generate_batch(args: argparse.Namespace) -> int:
         "output_compression": args.output_compression,
         "moderation": args.moderation,
     }
-    if getattr(args, "stream", False):
-        base_payload["stream"] = True
-        base_payload["response_format"] = "b64_json"
+    _force_generation_stream(base_payload)
 
     if args.dry_run:
         for i, job in enumerate(jobs, start=1):
@@ -933,6 +950,7 @@ async def _run_generate_batch(args: argparse.Namespace) -> int:
             job_payload["prompt"] = augmented
             job_payload = _merge_non_null(job_payload, {k: job.get(k) for k in base_payload.keys()})
             job_payload = {k: v for k, v in job_payload.items() if v is not None}
+            _force_generation_stream(job_payload)
 
             _validate_generate_payload(job_payload)
             effective_output_format = _normalize_output_format(job_payload.get("output_format"))
@@ -983,6 +1001,7 @@ async def _run_generate_batch(args: argparse.Namespace) -> int:
         payload["prompt"] = augmented
         payload = _merge_non_null(payload, {k: job.get(k) for k in base_payload.keys()})
         payload = {k: v for k, v in payload.items() if v is not None}
+        _force_generation_stream(payload)
 
         n = int(payload.get("n", 1))
         _validate_generate_payload(payload)
@@ -1072,10 +1091,8 @@ def _generate(args: argparse.Namespace) -> None:
         "output_compression": args.output_compression,
         "moderation": args.moderation,
     }
-    if args.stream:
-        payload["stream"] = True
-        payload["response_format"] = "b64_json"
     payload = {k: v for k, v in payload.items() if v is not None}
+    _force_generation_stream(payload)
 
     output_format = _normalize_output_format(args.output_format)
     _validate_transparency(args.background, output_format)
@@ -1312,7 +1329,11 @@ def main() -> int:
 
     gen_parser = subparsers.add_parser("generate", help="Create a new image")
     _add_shared_args(gen_parser)
-    gen_parser.add_argument("--stream", action="store_true", help="Use event-stream image generation responses")
+    gen_parser.add_argument(
+        "--stream",
+        action="store_true",
+        help="Compatibility flag; generation requests always use event-stream image output",
+    )
     gen_parser.set_defaults(func=_generate)
 
     batch_parser = subparsers.add_parser(
@@ -1323,7 +1344,11 @@ def main() -> int:
     batch_parser.add_argument("--input", required=True, help="Path to JSONL file (one job per line)")
     batch_parser.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY)
     batch_parser.add_argument("--max-attempts", type=int, default=DEFAULT_BATCH_MAX_ATTEMPTS)
-    batch_parser.add_argument("--stream", action="store_true", help="Use event-stream image generation responses")
+    batch_parser.add_argument(
+        "--stream",
+        action="store_true",
+        help="Compatibility flag; generation requests always use event-stream image output",
+    )
     batch_parser.add_argument("--fail-fast", action="store_true")
     batch_parser.set_defaults(func=_generate_batch, out_dir=str(DEFAULT_BATCH_OUTPUT_DIR))
 

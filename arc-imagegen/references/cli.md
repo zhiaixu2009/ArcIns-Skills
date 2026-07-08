@@ -97,7 +97,7 @@ Useful options:
 - `--size`: `auto` or a valid model size.
 - `--n`: 1-15 variants for one prompt.
 - `--output-format`: `png`, `jpeg`, or `webp`.
-- `--stream`: request compatible event-stream image output and parse the final completed image. Use this by default for sub2api generation because long-running non-streaming image requests can sit idle until the final image is ready.
+- `--stream`: compatibility flag. Generation requests are always sent as event-stream output with `stream=true` and `response_format=b64_json`, even when this flag is omitted. The CLI no longer offers synchronous image generation because long-running non-streaming requests can sit idle until the final image is ready.
 - `--downscale-max-dim`: also write a smaller copy for web usage.
 - `--quiet`: suppress routine progress logs while still showing errors.
 

@@ -11,7 +11,7 @@ The CLI uses `httpx` with `base_url` normalized to `/v1`, then calls:
 
 sub2api also registers `/images/generations` and `/images/edits`, but clients should prefer the `/v1/...` form because the CLI normalizes compatible API hosts to `/v1`.
 
-Live requests intentionally send only the necessary compatible headers: Bearer authorization, JSON accept, and `User-Agent: arc-imagegen/1.0`. Do not reintroduce OpenAI SDK generated `x-stainless-*` headers for sub2api calls; some upstream paths block those headers when they are forwarded.
+Live requests intentionally send only the necessary compatible headers: Bearer authorization, `Accept`, and `User-Agent: arc-imagegen/1.0`. Generation requests with `stream=true` send `Accept: text/event-stream`; non-streaming JSON helpers and edit requests keep JSON-compatible accept headers. Do not reintroduce OpenAI SDK generated `x-stainless-*` headers for sub2api calls; some upstream paths block those headers when they are forwarded.
 
 ## Authentication
 
@@ -101,9 +101,9 @@ The CLI expects OpenAI Images-style responses with:
 }
 ```
 
-The CLI decodes `b64_json` and writes the requested output files. It supports both standard JSON responses and compatible event-stream responses.
+The CLI decodes `b64_json` and writes the requested output files. Generation requests are always sent with `stream=true` and `response_format=b64_json`; compatible event-stream responses are parsed and normalized to the same `data[].b64_json` shape. Edit requests continue to use the Images edit endpoint's normal multipart response.
 
-For sub2api generation, prefer `--stream`. The server can return `text/event-stream` events such as `image_generation.partial_image` and `image_generation.completed`; the CLI ignores partial images and saves the final completed `b64_json`. This avoids long idle periods on the downstream connection when an upstream image job takes several minutes.
+For sub2api generation, the server can return `text/event-stream` events such as `image_generation.partial_image` and `image_generation.completed`; the CLI ignores partial images and saves the final completed `b64_json`. This avoids long idle periods on the downstream connection when an upstream image job takes several minutes. The `--stream` flag is retained only for command compatibility because streaming is now forced for all generation calls.
 
 Prompt-only requests such as `{"prompt":"..."}` are classified by sub2api as `images-basic`. Requests with explicit `model`, `size`, `quality`, `output_format`, `stream`, masks, or other native options are classified as `images-native`. The CLI uses the native path when it needs explicit model/options or streaming.
 
