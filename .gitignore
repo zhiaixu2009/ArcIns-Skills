@@ -13,3 +13,4 @@ arc-imagegen/output/*
 config.json
 plugins/arcins-skills/skills/*/output/
 plugins/arcins-skills/skills/*/config.json
+arc-imagegen/ref
