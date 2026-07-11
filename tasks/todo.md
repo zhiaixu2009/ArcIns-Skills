@@ -1,0 +1,22 @@
+# Public marketplace release
+
+- [x] Confirm the public GitHub marketplace and post-install configuration flow.
+- [x] Update `arcins-skills.README.md` with public CLI/UI installation, configuration, upgrade, and release instructions.
+- [x] Update plugin metadata for a public patch release without adding unverifiable legal or screenshot URLs.
+- [x] Validate the plugin, skill, dry-run behavior, tests, JSON, links, and final diff.
+
+## Review
+
+- Public marketplace source remains `.agents/plugins/marketplace.json` with the bundled local plugin path `./plugins/arcins-skills`.
+- Plugin manifest validation and `arc-imagegen` skill validation passed.
+- All 23 unit tests passed.
+- Generate dry-run confirmed `stream: true` and `response_format: b64_json`.
+- Both JSON files parse successfully and `git diff --check` reported no whitespace errors.
+- The public GitHub remote and `main` ref are reachable. The installed `codex-cli 0.112.0` does not expose plugin commands, so the documentation also provides the Codex App installation path.
+- No privacy policy, terms URL, or screenshots were added because no real public assets or legal documents currently exist for those fields.
+
+## Local main merge
+
+- [ ] Create a named release branch from the detached worktree and commit the verified changes.
+- [ ] Merge the release branch into the clean local `main` worktree.
+- [ ] Re-run focused validation from the local `main` worktree and record the merge result.
