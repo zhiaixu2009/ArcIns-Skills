@@ -27,3 +27,15 @@
 - Merged the branch into the local `main` worktree at `E:/7-AgentWorkSpace/arcins-skills`.
 - Re-ran plugin validation, skill validation, all 23 unit tests, JSON parsing, and the generate dry-run from local `main`; all passed.
 - Local `main` was intentionally not pushed to `origin`.
+
+## Publish and local plugin update
+
+- [x] Confirm the two local `main` commits and the current plugin version.
+- [x] Re-run plugin, skill, test, JSON, and dry-run validation.
+- [ ] Push local `main` to `origin/main` and verify the remote ref.
+- [ ] Update the Codex-installed `arcins-skills` plugin to the current local source version.
+- [ ] Verify the active marketplace source, enabled state, and installed cache contents.
+
+### Review
+
+- Pending.

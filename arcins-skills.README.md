@@ -97,8 +97,8 @@ python plugins/arcins-skills/scripts/setup-arc-imagegen-config.py
 当 marketplace 或插件发布了新版本时，可在支持插件命令的 Codex CLI 中执行：
 
 ```bash
-codex plugin marketplace update arcins
-codex plugin upgrade arcins-skills@arcins
+codex plugin marketplace upgrade arcins
+codex plugin add arcins-skills@arcins
 ```
 
 升级完成后新开 Codex 线程。用户级 `config.json` 不在插件目录中，不会被插件升级覆盖。
