@@ -4,26 +4,28 @@
 
 ## 安装方式
 
-本仓库现在使用仓库本地插件市场安装插件，不再把 `arc-imagegen/` 作为单独目录手动复制到 Codex skills 目录。
+本仓库通过公开 GitHub marketplace 安装插件，不再把 `arc-imagegen/` 作为单独目录手动复制到 Codex skills 目录。
 
-在仓库根目录执行：
+在支持插件 marketplace 的 Codex CLI 中执行：
 
 ```bash
-codex plugin marketplace add <repo-root>
+codex plugin marketplace add zhiaixu2009/ArcIns-Skills --ref main
 codex plugin add arcins-skills@arcins
 ```
 
-安装后运行配置脚本：
+如果当前 Codex CLI 没有 `plugin` 子命令，请在 Codex App 的插件目录中添加 GitHub marketplace `zhiaixu2009/ArcIns-Skills`，选择 `main` 分支，然后安装 `ArcIns Skills`。
+
+安装依赖：
 
 ```bash
-python plugins/arcins-skills/scripts/setup-arc-imagegen-config.py
+python -m pip install "httpx>=0.27" "pillow>=10.0"
 ```
 
-配置完成后，新开一个 Codex 线程，验证 `$arc-imagegen` 可以被加载。
+按照下方“配置”一节写入用户级配置后，新开一个 Codex 线程，验证 `$arc-imagegen` 可以被加载。
 
 ## 依赖
 
-安装随技能提供的 Python 依赖：
+如果已经克隆本仓库，也可以从依赖文件安装：
 
 ```bash
 python -m pip install -r plugins/arcins-skills/skills/arc-imagegen/requirements.txt
@@ -33,16 +35,11 @@ python -m pip install -r plugins/arcins-skills/skills/arc-imagegen/requirements.
 
 ## 配置
 
-真实 API 配置不放进插件目录，避免插件更新覆盖密钥。推荐使用安装配置脚本写入 Codex 用户目录：
-
-```bash
-python plugins/arcins-skills/scripts/setup-arc-imagegen-config.py
-```
-
-脚本默认写入：
+真实 API 配置不放进插件目录，避免插件更新覆盖密钥。请创建以下用户级配置文件：
 
 - 已设置 `CODEX_HOME`：`$CODEX_HOME/arc-imagegen/config.json`
-- 未设置 `CODEX_HOME`：`~/.codex/arc-imagegen/config.json`
+- Windows 默认位置：`%USERPROFILE%\.codex\arc-imagegen\config.json`
+- macOS/Linux 默认位置：`~/.codex/arc-imagegen/config.json`
 
 配置内容示例：
 
@@ -54,6 +51,17 @@ python plugins/arcins-skills/scripts/setup-arc-imagegen-config.py
   "timeout_seconds": 300
 }
 ```
+
+如果已经克隆本仓库，也可以使用交互式配置脚本：
+
+```bash
+python plugins/arcins-skills/scripts/setup-arc-imagegen-config.py
+```
+
+脚本默认写入：
+
+- 已设置 `CODEX_HOME`：`$CODEX_HOME/arc-imagegen/config.json`
+- 未设置 `CODEX_HOME`：`~/.codex/arc-imagegen/config.json`
 
 配置查找顺序：
 

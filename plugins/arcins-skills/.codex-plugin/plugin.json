@@ -1,9 +1,10 @@
 {
   "name": "arcins-skills",
-  "version": "0.1.0+codex.20260708075603",
+  "version": "0.1.1",
   "description": "ArcIns reusable Codex skills for image generation and future automation workflows.",
   "author": {
-    "name": "zhiaixu2009"
+    "name": "zhiaixu2009",
+    "url": "https://github.com/zhiaixu2009"
   },
   "homepage": "https://github.com/zhiaixu2009/ArcIns-Skills",
   "repository": "https://github.com/zhiaixu2009/ArcIns-Skills",
@@ -22,6 +23,7 @@
     "longDescription": "ArcIns Skills 是面向 Codex 的可复用技能集合。当前内置 arc-imagegen，可通过 sub2api 或其他 OpenAI-compatible Images API 进行流式图片生成与图片编辑；生成、批量生成与编辑请求都会强制使用 event-stream 返回，适合长耗时生图、改图、批量任务和多图并发。后续新增的自动化、内容生产或工作流技能也会放入同一个插件，方便统一安装、更新和管理。",
     "developerName": "zhiaixu2009",
     "category": "Productivity",
+    "websiteURL": "https://github.com/zhiaixu2009/ArcIns-Skills",
     "capabilities": [
       "Write",
       "Automation"

@@ -1,6 +1,6 @@
 # ArcIns Skills 插件
 
-`arcins-skills` 是一个面向 Codex 的仓库本地插件，用来集中管理 ArcIns 的可复用技能。当前内置的第一个技能是 `arc-imagegen`，用于通过 sub2api 或其他 OpenAI 兼容 Images API 进行流式生图和图片编辑。后续新增的自动化、内容生产或工作流技能都应继续放在同一个插件下，方便统一安装、更新和分发。
+`arcins-skills` 是一个可通过公开 GitHub marketplace 安装的 Codex 插件，用来集中管理 ArcIns 的可复用技能。当前内置的第一个技能是 `arc-imagegen`，用于通过 sub2api 或其他 OpenAI 兼容 Images API 进行流式生图和图片编辑。后续新增的自动化、内容生产或工作流技能都应继续放在同一个插件下，方便统一安装、更新和分发。
 
 ## 目录结构
 
@@ -37,18 +37,51 @@ arcins-skills.README.md
 - 插件总说明放在仓库根目录的 `arcins-skills.README.md`。
 - 真实 API key、用户配置、输出图片、缓存和 `__pycache__` 不进入插件包，也不提交仓库。
 
-## 安装流程
+## 公开安装
 
-在仓库根目录执行：
+仓库地址：`https://github.com/zhiaixu2009/ArcIns-Skills`
+
+在支持插件 marketplace 的 Codex CLI 中执行：
 
 ```bash
-codex plugin marketplace add <repo-root>
+codex plugin marketplace add zhiaixu2009/ArcIns-Skills --ref main
 codex plugin add arcins-skills@arcins
 ```
 
-安装后配置 `arc-imagegen`：
+如果当前 Codex CLI 没有 `plugin` 子命令，请在 Codex App 的插件目录中添加 GitHub marketplace `zhiaixu2009/ArcIns-Skills`，选择 `main` 分支，然后安装 `ArcIns Skills`。
+
+安装或升级插件后，请新开 Codex 线程，使最新技能和工具被加载。
+
+## 安装后配置
+
+先安装 `arc-imagegen` 使用的 Python 依赖：
 
 ```bash
+python -m pip install "httpx>=0.27" "pillow>=10.0"
+```
+
+真实 API 配置必须放在 Codex 用户目录，而不是插件目录：
+
+- 已设置 `CODEX_HOME`：`$CODEX_HOME/arc-imagegen/config.json`
+- Windows 默认位置：`%USERPROFILE%\.codex\arc-imagegen\config.json`
+- macOS/Linux 默认位置：`~/.codex/arc-imagegen/config.json`
+
+配置内容示例：
+
+```json
+{
+  "base_url": "https://sub-api.arcclawai.com",
+  "api_key": "YOUR_API_KEY",
+  "default_model": "gpt-image-2",
+  "timeout_seconds": 300
+}
+```
+
+也可以克隆仓库后运行交互式配置脚本：
+
+```bash
+git clone https://github.com/zhiaixu2009/ArcIns-Skills.git
+cd ArcIns-Skills
 python plugins/arcins-skills/scripts/setup-arc-imagegen-config.py
 ```
 
@@ -57,7 +90,18 @@ python plugins/arcins-skills/scripts/setup-arc-imagegen-config.py
 - 已设置 `CODEX_HOME`：`$CODEX_HOME/arc-imagegen/config.json`
 - 未设置 `CODEX_HOME`：`~/.codex/arc-imagegen/config.json`
 
-配置完成后，请新开 Codex 线程验证 `$arc-imagegen` 能被加载。Codex 插件和技能通常需要新线程才能读取最新安装状态。
+配置完成后，请在新线程中验证 `$arc-imagegen` 能被加载。
+
+## 升级插件
+
+当 marketplace 或插件发布了新版本时，可在支持插件命令的 Codex CLI 中执行：
+
+```bash
+codex plugin marketplace update arcins
+codex plugin upgrade arcins-skills@arcins
+```
+
+升级完成后新开 Codex 线程。用户级 `config.json` 不在插件目录中，不会被插件升级覆盖。
 
 ## 当前技能
 
@@ -134,3 +178,17 @@ python plugins/arcins-skills/skills/arc-imagegen/scripts/image_gen.py generate \
 - README 和面向用户的说明保持中文。
 - `plugin.json` 中的插件名保持 `arcins-skills`。
 - `.agents/plugins/marketplace.json` 中的 marketplace 名保持 `arcins`。
+- 发布新版本时更新 `plugin.json` 的语义化版本号，并确保 `main` 分支包含对应提交。
+
+建议发布流程：
+
+```bash
+python C:/Users/Administrator/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py plugins/arcins-skills
+python C:/Users/Administrator/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/arcins-skills/skills/arc-imagegen
+python -m unittest discover -s plugins/arcins-skills/skills/arc-imagegen/tests
+git push origin main
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+当前仓库提供的是可公开分享的 GitHub 自定义 marketplace。它不代表插件已经进入 OpenAI 官方维护的公共插件目录。
