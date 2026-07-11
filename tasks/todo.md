@@ -32,10 +32,14 @@
 
 - [x] Confirm the two local `main` commits and the current plugin version.
 - [x] Re-run plugin, skill, test, JSON, and dry-run validation.
-- [ ] Push local `main` to `origin/main` and verify the remote ref.
-- [ ] Update the Codex-installed `arcins-skills` plugin to the current local source version.
-- [ ] Verify the active marketplace source, enabled state, and installed cache contents.
+- [x] Push local `main` to `origin/main` and verify the remote ref.
+- [x] Update the Codex-installed `arcins-skills` plugin to the current local source version.
+- [x] Verify the active marketplace source, enabled state, and installed cache contents.
 
 ### Review
 
-- Pending.
+- Corrected the documented upgrade commands to `codex plugin marketplace upgrade arcins` and `codex plugin add arcins-skills@arcins`, matching Codex CLI `0.144.1`.
+- Plugin validation, skill validation, both JSON files, the stream dry-run, and all 23 unit tests passed before publishing.
+- Pushed local `main` through `4eade13` and verified `origin/main` resolved to the same commit.
+- Reinstalled `arcins-skills@arcins`; Codex now reports it as installed and enabled at version `0.1.1`.
+- The active `arcins` marketplace points to `E:/7-AgentWorkSpace/arcins-skills`, the cache contains only `0.1.1`, and the installed plugin tree matches the source tree with no diff.
