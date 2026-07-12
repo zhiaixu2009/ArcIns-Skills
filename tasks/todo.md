@@ -43,3 +43,19 @@
 - Pushed local `main` through `4eade13` and verified `origin/main` resolved to the same commit.
 - Reinstalled `arcins-skills@arcins`; Codex now reports it as installed and enabled at version `0.1.1`.
 - The active `arcins` marketplace points to `E:/7-AgentWorkSpace/arcins-skills`, the cache contains only `0.1.1`, and the installed plugin tree matches the source tree with no diff.
+
+## Root README installation guide
+
+- [x] Audit the existing installation docs and confirm the Codex CLI `0.144.1` plugin command syntax.
+- [x] Add a root `README.md` with direct CLI installation, Codex App fallback, dependency setup, API configuration, verification, and upgrade instructions.
+- [x] Verify installation from GitHub using an isolated `CODEX_HOME`.
+- [x] Validate documentation, plugin metadata, links, and the final diff.
+- [ ] Commit the README update and push `main` to `origin`.
+
+### Review
+
+- Added a standard root `README.md` so GitHub visitors see installation instructions immediately.
+- Documented CLI installation, Codex App fallback, Python dependencies, user-level API configuration, installation verification, and upgrade commands.
+- Confirmed the commands against Codex CLI `0.144.1` help output.
+- Used a fresh temporary `CODEX_HOME` to add `zhiaixu2009/ArcIns-Skills@main` and install `arcins-skills@arcins`; Codex reported version `0.1.1` as installed and enabled.
+- Plugin validation, skill validation, both JSON files, README link targets, `git diff --check`, and all 23 unit tests passed.
