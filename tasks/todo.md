@@ -86,3 +86,4 @@
 - Atomically force-pushed with exact leases: `main` moved from `fc48ac2` to `0f722c8`, and `codex/share-arc-imagegen-skill` moved from `62810c1` to `f8edac7`.
 - Reset local branches to the rewritten refs, deleted the obsolete local release branch, expired reflogs, and pruned old local objects.
 - A fresh mirror clone from GitHub reports zero history entries for the sensitive path, cannot resolve old commit `492df70`, and contains no non-test key-shaped or Bearer-token values.
+- Removed four local `refs/codex/snapshots/*` references that still retained the pre-rewrite commits, then expired reflogs and pruned again; local history now also reports zero sensitive-path entries and cannot resolve `492df70`.
