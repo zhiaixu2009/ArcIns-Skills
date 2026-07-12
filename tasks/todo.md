@@ -68,7 +68,7 @@
 - [x] Remove the service-specific default endpoint from the setup helper and require `base_url` explicitly.
 - [x] Re-scan tracked files and verify ignored local configuration remains untracked.
 - [x] Run plugin, skill, unit-test, JSON, dry-run, and diff validation.
-- [ ] Commit the sanitization changes and push `main` to `origin`.
+- [x] Commit the sanitization changes and push `main` to `origin`.
 - [ ] Rotate the historically exposed credential and rewrite affected Git history after explicit approval.
 
 ### Review
@@ -80,3 +80,4 @@
 - Current tracked non-test files contain no service-specific endpoint, realistic example endpoint, key-shaped credential, or Bearer token. Remaining URLs are required GitHub links and the official OpenAI API default used by runtime code.
 - The ignored local `arc-imagegen/config.json` remains untracked and was not printed or modified.
 - Git history audit found a non-placeholder, 67-character key-shaped value in `arc-imagegen/config.json` at initial commit `492df70`; it is reachable from local and remote branches. Credential rotation and history rewriting remain pending because they require external action and a destructive force-push decision.
+- Published the sanitized plugin as version `0.1.2` in commit `8c2b4f8`, verified `origin/main` at the same SHA, and updated the local Codex installation to the identical `0.1.2` cache contents.
