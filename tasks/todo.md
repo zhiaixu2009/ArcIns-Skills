@@ -69,7 +69,8 @@
 - [x] Re-scan tracked files and verify ignored local configuration remains untracked.
 - [x] Run plugin, skill, unit-test, JSON, dry-run, and diff validation.
 - [x] Commit the sanitization changes and push `main` to `origin`.
-- [ ] Rotate the historically exposed credential and rewrite affected Git history after explicit approval.
+- [x] Rewrite affected local and remote Git history after explicit approval.
+- [ ] Confirm the historically exposed credential has been rotated or revoked at the provider.
 
 ### Review
 
@@ -79,5 +80,9 @@
 - Bumped the plugin patch version to `0.1.2` so Codex will not reuse the sanitized content under the old cache version.
 - Current tracked non-test files contain no service-specific endpoint, realistic example endpoint, key-shaped credential, or Bearer token. Remaining URLs are required GitHub links and the official OpenAI API default used by runtime code.
 - The ignored local `arc-imagegen/config.json` remains untracked and was not printed or modified.
-- Git history audit found a non-placeholder, 67-character key-shaped value in `arc-imagegen/config.json` at initial commit `492df70`; it is reachable from local and remote branches. Credential rotation and history rewriting remain pending because they require external action and a destructive force-push decision.
+- Git history audit found a non-placeholder, 67-character key-shaped value in `arc-imagegen/config.json` at initial commit `492df70`; it was reachable from local and remote branches. Treat the credential as compromised until provider-side rotation or revocation is confirmed.
 - Published the sanitized plugin as version `0.1.2` in commit `8c2b4f8`, verified `origin/main` at the same SHA, and updated the local Codex installation to the identical `0.1.2` cache contents.
+- After explicit approval, rewrote `main` and `codex/share-arc-imagegen-skill` with `git-filter-repo`, removing `arc-imagegen/config.json` from every reachable commit while preserving both branch-tip trees exactly.
+- Atomically force-pushed with exact leases: `main` moved from `fc48ac2` to `0f722c8`, and `codex/share-arc-imagegen-skill` moved from `62810c1` to `f8edac7`.
+- Reset local branches to the rewritten refs, deleted the obsolete local release branch, expired reflogs, and pruned old local objects.
+- A fresh mirror clone from GitHub reports zero history entries for the sensitive path, cannot resolve old commit `492df70`, and contains no non-test key-shaped or Bearer-token values.
