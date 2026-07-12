@@ -43,14 +43,14 @@ Config may be TOML or JSON:
 
 ```json
 {
-  "base_url": "https://sub-api.example.com",
-  "api_key": "sk-...",
+  "base_url": "<YOUR_IMAGES_API_BASE_URL>",
+  "api_key": "<YOUR_API_KEY>",
   "default_model": "gpt-image-2",
   "timeout_seconds": 300
 }
 ```
 
-The script normalizes bare base URLs to `/v1`, so `https://sub-api.example.com` becomes `https://sub-api.example.com/v1`.
+The script normalizes the configured base URL so that it contains one trailing `/v1` path segment.
 
 Do not pass API keys on the command line. Dry-runs print `base_url`, endpoint, payload, and output paths, but never print the API key.
 

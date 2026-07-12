@@ -224,10 +224,39 @@ class ImageGenConfigTests(unittest.TestCase):
         combined_output = result.stdout + result.stderr
         self.assertEqual(result.returncode, 0, combined_output)
         self.assertNotIn(secret, combined_output)
+        self.assertNotIn("https://sub-api.example.com", combined_output)
+        self.assertIn("base_url: [configured]", combined_output)
         self.assertEqual(config["base_url"], "https://sub-api.example.com")
         self.assertEqual(config["api_key"], secret)
         self.assertEqual(config["default_model"], "gpt-image-2")
         self.assertEqual(config["timeout_seconds"], 321.0)
+
+    def test_setup_script_requires_explicit_base_url(self):
+        plugin_root = find_plugin_root()
+        setup_script = plugin_root / "scripts" / "setup-arc-imagegen-config.py"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {**os.environ, "CODEX_HOME": str(Path(tmp) / "codex-home")}
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(setup_script),
+                    "--api-key",
+                    "test-placeholder-key",
+                    "--force",
+                ],
+                input="",
+                capture_output=True,
+                text=True,
+                check=False,
+                env=env,
+            )
+            config_path = Path(env["CODEX_HOME"]) / "arc-imagegen" / "config.json"
+            config_exists = config_path.exists()
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("base_url is required", result.stderr)
+        self.assertFalse(config_exists)
 
     def test_api_error_message_redacts_configured_secret(self):
         config = self.image_gen.APIConfig(

@@ -12,7 +12,6 @@ import sys
 from typing import Optional
 
 
-DEFAULT_BASE_URL = "https://sub-api.arcclawai.com"
 DEFAULT_MODEL = "gpt-image-2"
 DEFAULT_TIMEOUT_SECONDS = 300.0
 
@@ -36,6 +35,14 @@ def _positive_float(value: str) -> float:
 def _prompt_text(label: str, default: str) -> str:
     value = input(f"{label} [{default}]: ").strip()
     return value or default
+
+
+def _prompt_required_text(label: str) -> str:
+    while True:
+        value = input(f"{label}: ").strip()
+        if value:
+            return value
+        print(f"{label} is required.", file=sys.stderr)
 
 
 def _prompt_timeout(default: float) -> float:
@@ -64,6 +71,14 @@ def _coalesce_text(value: Optional[str], label: str, default: str, *, interactiv
     if interactive:
         return _prompt_text(label, default)
     return default
+
+
+def _coalesce_required_text(value: Optional[str], label: str, *, interactive: bool) -> str:
+    if value is not None:
+        return value.strip()
+    if interactive:
+        return _prompt_required_text(label)
+    return ""
 
 
 def _coalesce_timeout(value: Optional[float], *, interactive: bool) -> float:
@@ -107,10 +122,9 @@ def main() -> int:
             print(f"No changes written. Existing config kept at: {target}")
             return 0
 
-    base_url = _coalesce_text(
+    base_url = _coalesce_required_text(
         args.base_url,
         "base_url",
-        DEFAULT_BASE_URL,
         interactive=interactive,
     )
     api_key = _coalesce_api_key(args.api_key, interactive=interactive)
@@ -121,6 +135,10 @@ def main() -> int:
         interactive=interactive,
     )
     timeout_seconds = _coalesce_timeout(args.timeout_seconds, interactive=interactive)
+
+    if not base_url:
+        print("base_url is required. Re-run with --base-url or enter it at the prompt.", file=sys.stderr)
+        return 1
 
     if not api_key:
         print("api_key is required. Re-run with --api-key or enter it at the prompt.", file=sys.stderr)
@@ -137,7 +155,7 @@ def main() -> int:
     target.write_text(json.dumps(config, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
     print(f"Wrote ARC Image Gen config to: {target}")
-    print(f"base_url: {base_url}")
+    print("base_url: [configured]")
     print(f"default_model: {default_model}")
     print(f"timeout_seconds: {timeout_seconds:g}")
     print("api_key: [configured]")

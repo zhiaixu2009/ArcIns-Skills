@@ -60,3 +60,23 @@
 - Used a fresh temporary `CODEX_HOME` to add `zhiaixu2009/ArcIns-Skills@main` and install `arcins-skills@arcins`; Codex reported version `0.1.1` as installed and enabled.
 - Plugin validation, skill validation, both JSON files, README link targets, `git diff --check`, and all 23 unit tests passed.
 - Published the root README in commit `a835699` and verified `origin/main` resolved to the same SHA with the installation guide present.
+
+## Sanitize API configuration examples
+
+- [x] Inventory tracked URLs and secret-shaped values without printing local secret contents.
+- [x] Replace user-facing API URLs and key examples with explicit placeholders.
+- [x] Remove the service-specific default endpoint from the setup helper and require `base_url` explicitly.
+- [x] Re-scan tracked files and verify ignored local configuration remains untracked.
+- [x] Run plugin, skill, unit-test, JSON, dry-run, and diff validation.
+- [ ] Commit the sanitization changes and push `main` to `origin`.
+- [ ] Rotate the historically exposed credential and rewrite affected Git history after explicit approval.
+
+### Review
+
+- Replaced API configuration examples in seven user-facing files with `<YOUR_IMAGES_API_BASE_URL>` and `<YOUR_API_KEY>`.
+- Removed the service-specific setup default, made `base_url` required, and stopped the setup helper from echoing the configured URL.
+- Added regression coverage for missing `base_url` and URL/key redaction; all 24 unit tests pass.
+- Bumped the plugin patch version to `0.1.2` so Codex will not reuse the sanitized content under the old cache version.
+- Current tracked non-test files contain no service-specific endpoint, realistic example endpoint, key-shaped credential, or Bearer token. Remaining URLs are required GitHub links and the official OpenAI API default used by runtime code.
+- The ignored local `arc-imagegen/config.json` remains untracked and was not printed or modified.
+- Git history audit found a non-placeholder, 67-character key-shaped value in `arc-imagegen/config.json` at initial commit `492df70`; it is reachable from local and remote branches. Credential rotation and history rewriting remain pending because they require external action and a destructive force-push decision.

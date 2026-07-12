@@ -42,8 +42,8 @@ Supported keys:
 
 ```json
 {
-  "base_url": "https://sub-api.example.com",
-  "api_key": "sk-...",
+  "base_url": "<YOUR_IMAGES_API_BASE_URL>",
+  "api_key": "<YOUR_API_KEY>",
   "default_model": "gpt-image-2",
   "timeout_seconds": 300
 }

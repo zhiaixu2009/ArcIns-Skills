@@ -52,8 +52,8 @@ python -m pip install "httpx>=0.27" "pillow>=10.0"
 
 ```json
 {
-  "base_url": "https://sub-api.example.com",
-  "api_key": "YOUR_API_KEY",
+  "base_url": "<YOUR_IMAGES_API_BASE_URL>",
+  "api_key": "<YOUR_API_KEY>",
   "default_model": "gpt-image-2",
   "timeout_seconds": 300
 }
@@ -94,4 +94,3 @@ codex plugin add arcins-skills@arcins
 
 - [ArcIns Skills 插件说明](arcins-skills.README.md)
 - [ARC Image Gen 技能说明](arc-imagegen.README.md)
-

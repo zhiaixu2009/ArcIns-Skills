@@ -70,8 +70,8 @@ python -m pip install "httpx>=0.27" "pillow>=10.0"
 
 ```json
 {
-  "base_url": "https://sub-api.arcclawai.com",
-  "api_key": "YOUR_API_KEY",
+  "base_url": "<YOUR_IMAGES_API_BASE_URL>",
+  "api_key": "<YOUR_API_KEY>",
   "default_model": "gpt-image-2",
   "timeout_seconds": 300
 }
@@ -187,8 +187,8 @@ python C:/Users/Administrator/.codex/skills/.system/plugin-creator/scripts/valid
 python C:/Users/Administrator/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/arcins-skills/skills/arc-imagegen
 python -m unittest discover -s plugins/arcins-skills/skills/arc-imagegen/tests
 git push origin main
-git tag v0.1.1
-git push origin v0.1.1
+git tag v0.1.2
+git push origin v0.1.2
 ```
 
 当前仓库提供的是可公开分享的 GitHub 自定义 marketplace。它不代表插件已经进入 OpenAI 官方维护的公共插件目录。
