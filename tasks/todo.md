@@ -70,7 +70,7 @@
 - [x] Run plugin, skill, unit-test, JSON, dry-run, and diff validation.
 - [x] Commit the sanitization changes and push `main` to `origin`.
 - [x] Rewrite affected local and remote Git history after explicit approval.
-- [ ] Confirm the historically exposed credential has been rotated or revoked at the provider.
+- [x] Confirm the historically exposed credential has been rotated or revoked at the provider.
 
 ### Review
 
@@ -87,3 +87,4 @@
 - Reset local branches to the rewritten refs, deleted the obsolete local release branch, expired reflogs, and pruned old local objects.
 - A fresh mirror clone from GitHub reports zero history entries for the sensitive path, cannot resolve old commit `492df70`, and contains no non-test key-shaped or Bearer-token values.
 - Removed four local `refs/codex/snapshots/*` references that still retained the pre-rewrite commits, then expired reflogs and pruned again; local history now also reports zero sensitive-path entries and cannot resolve `492df70`.
+- The user confirmed on 2026-07-13 that the historically exposed credential was rotated or revoked at the provider, completing the credential-remediation workflow.
