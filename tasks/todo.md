@@ -95,7 +95,7 @@
 - [x] Add a regression contract requiring `view_image` plus absolute-path Markdown previews.
 - [x] Update the skill, reference docs, and user documentation with reliable preview behavior.
 - [x] Bump the plugin version and run plugin, skill, unit-test, JSON, and diff validation.
-- [ ] Update the local Codex plugin, verify installed contents, commit, and push.
+- [x] Update the local Codex plugin, verify installed contents, commit, and push.
 
 ### Review
 
@@ -104,3 +104,5 @@
 - Added a static regression contract that rejects the old Markdown prohibition and requires `view_image`, Markdown embeds, and absolute paths.
 - Updated the skill reference, user documentation, and `agents/openai.yaml`; bumped the plugin version to `0.1.3`.
 - Plugin validation, skill validation, JSON validation, display-rule checks, `git diff --check`, and all 25 unit tests passed.
+- Published commit `03f9a64`, updated the local Codex installation to `arcins-skills 0.1.3`, and verified the installed plugin tree is identical to the source tree.
+- The installed skill explicitly contains `view_image`, Markdown image embeds, and absolute local path requirements, and no longer contains the old Markdown-preview prohibition.
