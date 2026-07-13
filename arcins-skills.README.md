@@ -187,8 +187,8 @@ python C:/Users/Administrator/.codex/skills/.system/plugin-creator/scripts/valid
 python C:/Users/Administrator/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/arcins-skills/skills/arc-imagegen
 python -m unittest discover -s plugins/arcins-skills/skills/arc-imagegen/tests
 git push origin main
-git tag v0.1.2
-git push origin v0.1.2
+git tag v0.1.3
+git push origin v0.1.3
 ```
 
 当前仓库提供的是可公开分享的 GitHub 自定义 marketplace。它不代表插件已经进入 OpenAI 官方维护的公共插件目录。

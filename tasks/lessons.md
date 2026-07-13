@@ -7,3 +7,8 @@
 - Setup helpers must require users to enter their own API endpoint and secret; do not ship a personal or service-specific endpoint as an implicit default.
 - Never print or modify ignored local secret files during repository audits. Verify only that they remain untracked and ignored.
 - Scan reachable Git history as well as the current tree. Removing a secret from the latest commit does not remove its historical exposure; rotate the credential first, then rewrite and force-push history only with explicit user approval.
+
+## Generated image previews
+
+- Do not rely only on a transient image-viewing tool call for generated-image presentation. Require the exact `view_image` tool when available and include absolute-path Markdown image embeds in the final response so previews remain visible in the conversation.
+- Do not prohibit the fallback mechanism that the target client needs. For Codex App, local image Markdown must use an absolute filesystem path; relative paths and plain file listings are not sufficient previews.

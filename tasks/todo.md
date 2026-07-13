@@ -88,3 +88,19 @@
 - A fresh mirror clone from GitHub reports zero history entries for the sensitive path, cannot resolve old commit `492df70`, and contains no non-test key-shaped or Bearer-token values.
 - Removed four local `refs/codex/snapshots/*` references that still retained the pre-rewrite commits, then expired reflogs and pruned again; local history now also reports zero sensitive-path entries and cannot resolve `492df70`.
 - The user confirmed on 2026-07-13 that the historically exposed credential was rotated or revoked at the provider, completing the credential-remediation workflow.
+
+## Reliable generated-image previews
+
+- [x] Inspect the source and installed skill display rules and identify the preview failure mode.
+- [x] Add a regression contract requiring `view_image` plus absolute-path Markdown previews.
+- [x] Update the skill, reference docs, and user documentation with reliable preview behavior.
+- [x] Bump the plugin version and run plugin, skill, unit-test, JSON, and diff validation.
+- [ ] Update the local Codex plugin, verify installed contents, commit, and push.
+
+### Review
+
+- Root cause: the skill prohibited Markdown image embeds and relied only on an unnamed local image-viewing tool call, so skipped, unavailable, or collapsed tool output left only file paths in the final response.
+- Updated the contract to call the exact `view_image` tool with each absolute local path and to include one absolute-path Markdown image preview plus a clickable link for every result.
+- Added a static regression contract that rejects the old Markdown prohibition and requires `view_image`, Markdown embeds, and absolute paths.
+- Updated the skill reference, user documentation, and `agents/openai.yaml`; bumped the plugin version to `0.1.3`.
+- Plugin validation, skill validation, JSON validation, display-rule checks, `git diff --check`, and all 25 unit tests passed.

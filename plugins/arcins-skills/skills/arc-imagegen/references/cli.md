@@ -149,9 +149,9 @@ When `--out-dir` is omitted, batch outputs default to `<skill-root>/output/batch
 
 ## Result display
 
-After generation, display every generated file in the Codex conversation with the local image-viewing tool, then list the generated image files in the final text response. Do not create preview helper files, contact sheets, Markdown image embeds, raw HTML previews, or combined preview PNGs.
+After generation, call `view_image` once for every generated file using its absolute local path. In the final response, also include one Markdown image embed per file using the same absolute path, then list compact clickable file links. Use forward slashes in Markdown paths, wrap paths containing spaces in angle brackets, and never use relative paths or `file://` URIs. Do not create preview helper files, contact sheets, raw HTML previews, or combined preview PNGs.
 
-For routine generation, do not run extra visual QA or post-processing after files are written. Write all user-facing progress and final text in Simplified Chinese. Finish with one concise Chinese sentence that says the count, model, quality, and output directory, followed by compact file links for the generated images.
+For routine generation, do not run extra visual QA or post-processing after files are written. Write all user-facing progress and final text in Simplified Chinese. Finish with one concise Chinese sentence that says the count, model, quality, and output directory, followed by absolute-path Markdown image previews and compact file links for the generated images.
 
 ## gpt-image-2
 

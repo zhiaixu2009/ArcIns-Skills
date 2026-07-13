@@ -5,7 +5,7 @@ description: Use when the user wants image generation or image editing through a
 
 # ARC Image Gen
 
-Generate or edit raster images through `scripts/image_gen.py`. This skill is intentionally narrow: convert the user's image intent into a prompt, send it to the configured Images API, save the outputs, and display the generated images in the Codex conversation with the local image-viewing tool.
+Generate or edit raster images through `scripts/image_gen.py`. This skill is intentionally narrow: convert the user's image intent into a prompt, send it to the configured Images API, save the outputs, and display the generated images in the Codex conversation with `view_image` plus durable Markdown image embeds.
 
 Do not use Codex's built-in `image_gen` tool from this skill.
 
@@ -14,7 +14,7 @@ Do not use Codex's built-in `image_gen` tool from this skill.
 - If the user wants any image generated, including images for PPT, DOCX, PDF, websites, reports, cards, UI mockups, covers, posters, or other artifacts, use this skill to generate the image directly.
 - Do not build a separate PPT, DOCX, PDF, HTML page, canvas, SVG, or local composition workflow unless the user explicitly asks for that artifact after the images are generated.
 - Do not split the task into "generate a background, then add text/layout with local scripts" unless the user explicitly asks for local post-processing. Put requested text, layout, style, and composition into the image prompt and generate the image directly.
-- Do not create preview helper files, contact sheets, HTML preview pages, Markdown image embeds, HTML image tags, or combined preview PNGs for result presentation.
+- Do not create preview helper files, contact sheets, HTML preview pages, HTML image tags, or combined preview PNGs for result presentation. Markdown image embeds that point directly to generated files are required and are not preview helper files.
 - Do not perform post-generation visual critique, inspection, repair, or iterative validation unless the user explicitly asks for QA or revisions.
 - Keep progress terse. Do not narrate reasoning, dry-run payloads, retry logs, or validation details during routine generation.
 - Generate at most 15 images for one user request. If the user asks for more than 15, generate the first 15 and state that the skill limit is 15 per request.
@@ -22,7 +22,7 @@ Do not use Codex's built-in `image_gen` tool from this skill.
 - All image output requests must use event-stream output. `scripts/image_gen.py` forces `stream=true`, `response_format=b64_json`, and `Accept: text/event-stream` for `generate`, `generate-batch`, and `edit`; do not attempt synchronous image generation or editing.
 - For generation retries, use at most 2 attempts per independent image request: the original request plus one immediate retry. Do not wait for retry cooldowns, and do not retry a job again after the second failure.
 - If a generation job fails after its second attempt, report that failed job and keep the successfully written images. Do not rerun the same CLI command again unless the user explicitly asks.
-- Display every generated image in the Codex conversation by calling the local image-viewing tool on each output file, then list the generated image files in the final text response.
+- Display every generated image in the Codex conversation by calling `view_image` with the absolute local path of each output file. The final text response must also contain one Markdown image embed per generated file using its absolute local path.
 - Use automatic prompt processing by default. If the user explicitly asks for direct image generation, skip prompt analysis and optimization and call the CLI with the user's prompt text.
 - Write all user-facing text in Simplified Chinese while using this skill, including progress updates, visible reasoning summaries, final responses, error explanations, and file-list labels. Code, commands, model names, API parameters, filenames, file paths, and exact user-provided direct prompts may stay in their original form.
 
@@ -88,8 +88,8 @@ In direct generation:
 3. Choose count, size, quality, and output path. Default quality is `medium`; default model is `gpt-image-2`; maximum count is 15.
 4. For one new image, run `scripts/image_gen.py generate` with `--quiet`; `--stream` may be included for compatibility but is no longer required because image output requests are always stream-only. For multiple images, create one JSONL job per desired image and run `generate-batch --max-attempts 2 --quiet`. For image editing, run `edit` with the same stream-only invariant.
 5. The sub2api images endpoints can keep long-running requests alive through event-stream output, which reduces client-side read timeouts while still saving the final `b64_json` image.
-6. After files are written, immediately call the local image-viewing tool once per output image so every generated image appears in the Codex conversation before the final text response.
-7. Final response: write one concise Simplified Chinese sentence with model, quality, count, and the output directory, followed by a compact list of the generated image files. Do not include long validation or process details.
+6. After files are written, immediately call `view_image` once per output image using its absolute local path.
+7. Final response: write one concise Simplified Chinese sentence with model, quality, count, and the output directory. Then include one Markdown image embed per generated file using its absolute local path, followed by compact clickable file links. Do not include long validation or process details.
 
 ## Commands
 
@@ -151,13 +151,20 @@ If generation fails before reaching the API:
 
 ## Result Display
 
-Use the local image-viewing tool for all generated images, up to the 15-image limit, then list the generated image files in the final text response. Do not use Markdown image embeds, HTML image tags, gallery files, or combined preview PNGs as the result presentation.
+For every generated image, up to the 15-image limit:
+
+1. Call `view_image` with the file's absolute local path immediately after generation.
+2. Include a Markdown image embed in the final response using the same absolute local path, for example `![生成图片 1](<C:/absolute/path/output.png>)`.
+3. Add a compact clickable file link after the preview.
+
+Use forward slashes in Markdown paths. If a path contains spaces, wrap the absolute path target in angle brackets. Never use a relative path or `file://` URI. If `view_image` is unavailable or its result is not visibly rendered, the Markdown image embed remains mandatory as the durable preview fallback. Do not create gallery files, HTML previews, contact sheets, or combined preview PNGs.
 
 Final response format:
 
 ```text
 <Simplified Chinese sentence stating count, model, quality, and output directory.>
-<Compact file links for every generated image.>
+<One absolute-path Markdown image embed per generated image.>
+<Compact clickable file links for every generated image.>
 ```
 
 Keep it short. Do not use English boilerplate such as "Generated ..." in the final response.

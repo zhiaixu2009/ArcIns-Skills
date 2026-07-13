@@ -93,6 +93,12 @@ ARC_IMAGEGEN_TIMEOUT_SECONDS
 
 生成和编辑图片时都只走流式请求。CLI 会自动发送 `stream=true`、`response_format=b64_json` 和 `Accept: text/event-stream`，即使没有显式传入 `--stream` 也不会走同步生成路径。这样更适合 sub2api 等中转服务：服务端可以在长耗时生图或改图过程中持续返回 event-stream 数据，降低同步请求在代理层超时的概率。
 
+## 结果预览
+
+图片生成或编辑完成后，skill 会调用 `view_image` 展示每张结果，并在最终回复中使用绝对本地路径的 Markdown 图片标签再次嵌入预览。双重展示可以避免工具调用被折叠、未触发或未渲染时只看到文件路径。
+
+如果更新前的对话仍然只显示路径，请确认插件已升级，并新建 Codex 对话以重新加载最新 skill 规则。
+
 ## 直接运行 CLI
 
 单图生成：

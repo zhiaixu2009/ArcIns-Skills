@@ -3,4 +3,4 @@ interface:
   short_description: "Generate images through a configured Images API"
   icon_small: "./assets/imagegen-small.svg"
   icon_large: "./assets/imagegen.png"
-  default_prompt: "Use $arc-imagegen to generate or edit an image through my configured API endpoint. Respond in Simplified Chinese."
+  default_prompt: "Use $arc-imagegen to generate or edit an image through my configured API endpoint. Display every result in the conversation with view_image and an absolute-path Markdown image preview. Respond in Simplified Chinese."
